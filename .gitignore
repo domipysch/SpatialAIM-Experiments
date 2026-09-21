@@ -1,0 +1,28 @@
+# Everything this repository writes is regenerable: previews, caches, trial
+# renderings. The figures themselves live in the Obsidian vault (the drawings)
+# and in AIM-Overleaf (the PDFs); the data and results live in Data/.
+outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# tooling
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# assistant context, kept local
+CLAUDE.md
+.claude/
