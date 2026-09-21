@@ -6,13 +6,13 @@ Same approach as the robustness figure: the panels carry only what is anchored t
 (cells, axes, colour bars). Letters, headings, the mapper names and the legends
 are drawn in Excalidraw; everything else belongs in the caption.
 
-    a  delta_spot      AIM (proposed K) minus annotation (K = T), per reference
+    a  delta_spot      SpatialAIM (proposed K) minus annotation (K = T), per reference
        delta_gene      x mapper x tree; the columns are references
        delta_k         and the difference in how many cell types that took
     b  mappers         the five mappers at their own proposal, centred within
                        each reference so the references can be compared at all
 
-Row (a) is one argument in three panels: reconstruction barely moves, and AIM
+Row (a) is one argument in three panels: reconstruction barely moves, and SpatialAIM
 gets there with substantially fewer cell types.
 
 Absolute cosine similarity is not comparable across references (33-gene panels
@@ -38,9 +38,9 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from aim_experiments import exp1 as L
-from aim_experiments import paths
-from aim_experiments.style import (
+from spatialaim_experiments import exp1 as L
+from spatialaim_experiments import paths
+from spatialaim_experiments.style import (
     CMAP_DK,
     DK_LIMIT,
     MAPPER_COLOURS,
@@ -61,7 +61,7 @@ PREVIEW = paths.outputs("03_reconstruction")
 
 # Row (b) groups by configuration (metric x linkage) and colours by mapper, so
 # the five mappers are read against each other inside one group and the same
-# five colours recur in every group -- see aim_experiments.style for the palette
+# five colours recur in every group -- see spatialaim_experiments.style for the palette
 # itself, which every figure of the paper shares.
 
 # The figure prints at the paper's 5.17 in text width, so the drawing is scaled
@@ -94,13 +94,13 @@ MAPPER_RECT = (0.105, 0.215, 0.885, 0.757)
 # and the outliers still stand out against a mostly pale field.
 DELTA_LIMIT = 0.25
 # DK_LIMIT (the cell-type difference, clipped at 20) is shared with figure 2.4
-# and lives in aim_experiments.style.
+# and lives in spatialaim_experiments.style.
 
 panels = PanelWriter(OUT, PREVIEW)
 
 
 # ---------------------------------------------------------------------------
-# (a) AIM against the annotation, over the whole design space
+# (a) SpatialAIM against the annotation, over the whole design space
 # ---------------------------------------------------------------------------
 
 def _matrix(df: pd.DataFrame, metric: str, value: str) -> pd.DataFrame:
@@ -108,7 +108,7 @@ def _matrix(df: pd.DataFrame, metric: str, value: str) -> pd.DataFrame:
     slices. ``value`` is 'delta' (the difference in ``metric``) or 'dk' (the
     difference in how many cell types it took).
 
-    Both are AIM minus the annotation, in that order -- the same subtraction in
+    Both are SpatialAIM minus the annotation, in that order -- the same subtraction in
     every panel of the row, so one sign convention covers all three and a
     negative cell always means the annotation side was larger."""
     pr = L.paired(df, metric)
@@ -124,7 +124,7 @@ def _delta_matrix(df: pd.DataFrame, metric: str) -> pd.DataFrame:
     return _matrix(df, metric, "delta")
 
 
-# blue = AIM ahead, orange = the annotation ahead; the figure's own two families.
+# blue = SpatialAIM ahead, orange = the annotation ahead; the figure's own two families.
 #
 # The scale is deliberately **not** linear in colour position. Its stops are
 # anchored in cosine-similarity units, and the near-white band is stretched to
@@ -145,7 +145,7 @@ def _delta_matrix(df: pd.DataFrame, metric: str) -> pd.DataFrame:
 # one weakness: at full saturation crimson sits near Tangram's vermillion, so the
 # few strongly negative cells and the Tangram dot are similar reds.
 DELTA_STOPS = [
-    #  |delta|   annotation ahead   AIM ahead
+    #  |delta|   annotation ahead   SpatialAIM ahead
     (0.000, "#FFFFFF", "#FFFFFF"),
     (0.050, "#FCF0F1", "#EBF7F5"),
     (0.100, "#F4C7CE", "#C7E6E1"),
@@ -171,7 +171,7 @@ def _diverging(name: str, stops: list[tuple[float, str, str]], limit: float):
 CMAP_DELTA = _diverging("aim_delta", DELTA_STOPS, DELTA_LIMIT)
 
 # The third scale, for the cell-type difference, is CMAP_DK in
-# aim_experiments.style: a third hue pair, so nobody reads cell types as a
+# spatialaim_experiments.style: a third hue pair, so nobody reads cell types as a
 # cosine, and shared with figure 2.4, which plots the same quantity.
 
 # Shared by all three heat maps so their cells align. The top quarter is room
@@ -240,13 +240,13 @@ def panel_mappers(df: pd.DataFrame) -> None:
     so what is plotted is how a mapper does *relative to the others on the same
     data* -- the only way five mappers can be compared across ten references
     whose absolute cosine similarities are not commensurable."""
-    aim = df[df["role"] == "aim"].copy()
+    spatialaim = df[df["role"] == "spatialaim"].copy()
 
     def centred(metric: str) -> pd.DataFrame:
         """One value per (reference, mapper, tree): how far that mapper sits from
         the mean of all five on the same pair and linkage, averaged over the
         reference's slices. Ten references -> ten values per box."""
-        per_pair = (aim.groupby(["reference", "pair_dir", "tree", "mapper"])[metric]
+        per_pair = (spatialaim.groupby(["reference", "pair_dir", "tree", "mapper"])[metric]
                        .mean().reset_index())
         per_pair["centred"] = per_pair[metric] - per_pair.groupby(
             ["reference", "pair_dir", "tree"])[metric].transform("mean")
@@ -303,15 +303,15 @@ def main() -> None:
                     f"+{pale:g}", f"+{DELTA_LIMIT:g}"]
     rows_y = panel_heat(_delta_matrix(df, METRIC_SPOT), "delta_spot",
                         DELTA_LIMIT, CMAP_DELTA, delta_ticks, delta_labels,
-                        "Δ cosine similarity per spot\n(AIM − annotation)")
+                        "Δ cosine similarity per spot\n(SpatialAIM − annotation)")
     panel_heat(_delta_matrix(df, METRIC_GENE), "delta_gene",
                DELTA_LIMIT, CMAP_DELTA, delta_ticks, delta_labels,
-               "Δ cosine similarity per gene\n(AIM − annotation)")
+               "Δ cosine similarity per gene\n(SpatialAIM − annotation)")
     dk = _matrix(df, METRIC_SPOT, "dk")
     panel_heat(dk, "delta_k", DK_LIMIT, CMAP_DK,
                [-DK_LIMIT, 0, DK_LIMIT],
                [f"≤{-DK_LIMIT}", "0", f"≥+{DK_LIMIT}"],
-               "Δ number of cell types\n(AIM − annotation)")
+               "Δ number of cell types\n(SpatialAIM − annotation)")
     panel_mappers(df)
 
     panels.write_manifest({

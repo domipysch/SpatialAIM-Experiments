@@ -11,28 +11,32 @@
 # the paper prints); every other mapper is assembled from figure_2_4_<mapper>/
 # into figure_2_4_<mapper>.excalidraw.md.
 #
-# Two rows of three, one row per criterion:
+# Two rows of three, one row per criterion, and every cell its own panel:
 #
-#   a  sketch | neighbourhood enrichment | local spatial purity
-#   b  sketch | modularity over the slice | modularity over the reference
+#   a sketch | b neighbourhood enrichment | c local spatial purity
+#   d sketch | e modularity over the slice | f modularity over the reference
 #
 # Each row opens with a sketch of what its criterion means, drawn on a toy graph
 # with the same labels twice -- observed above, permuted below. Then the two
-# measures of that criterion, AIM against the author's annotation, the diagonal
+# measures of that criterion, SpatialAIM against the author's annotation, the diagonal
 # being parity. The single colour bar under the block applies to all four.
+#
+# The letter and its caption sit at the top left of the cell they belong to. The
+# three letters of a row share one line, and the images share the line below the
+# row's tallest caption, so both read as a row however long a caption is.
 #
 # Run with any Python (no scientific dependencies).
 
 # Element construction, text measurement and the file format itself live in
-# aim_experiments.excalidraw; what is here is this figure's own layout.
+# spatialaim_experiments.excalidraw; what is here is this figure's own layout.
 
 import argparse
 import json
 import logging
 
-from aim_experiments import paths
-from aim_experiments.excalidraw import WIDTH, Drawing, text_size
-from aim_experiments.style import MAPPERS, SCALE
+from spatialaim_experiments import paths
+from spatialaim_experiments.excalidraw import WIDTH, Drawing, text_size, wrap
+from spatialaim_experiments.style import MAPPERS, SCALE
 
 logger = logging.getLogger(__name__)
 
@@ -51,41 +55,38 @@ FS_LETTER = 50
 FS_HEAD = 40
 HEAD_DX = 44
 LINE = FS_HEAD * 1.2
-
-# Three text lines above every row: the letter and the row heading on the top
-# one, then the two-line panel headings. One line for all of it put the row
-# heading straight through the first panel's heading; one line per panel heading
-# made them wide enough to collide with each other and to leave the figure.
-PANEL_HEAD_DROP = 2 * LINE + 4
-ROW_HEAD_DROP = PANEL_HEAD_DROP + LINE + 10
+# The caption's baseline sits this far above the image it belongs to.
+HEAD_GAP = 6
 
 ROW_TOP = 10
 ROW_GAP = 40          # panel bottom to the next row's letter line
 BAR_GAP = 26
 
-# One heading per row, and one per scatter. The sketch needs none -- it is the
-# row heading made visual.
+# One letter and one caption per cell. The two sketches keep the caption that
+# used to head their whole row -- they are that criterion made visual -- and the
+# four scatters keep the heading that used to stand over them.
 #
 # The wording is the user's own, read back out of the drawing after they edited
 # it there; keep it verbatim rather than paraphrasing on the next regeneration.
+# So are the line breaks, which balance the two lines where a greedy wrap would
+# leave one word alone -- ``wrap`` keeps a break that is already in the text and
+# is only the fallback for a caption that still does not fit its cell.
 ROWS = [
     {
-        "letter": "a",
-        "heading": "Spatial organisation of the mapped cell types",
-        "sketch": "sketch_spatial",
-        "panels": [("plaus_nhood_mean_self_zscore",
-                    "neighbourhood enrichment\nself-diagonal z-score"),
-                   ("plaus_local_purity_zscore",
-                    "local spatial\npurity z-score")],
+        "sketch": ("a", "sketch_spatial",
+                   "Spatial organisation of\nthe mapped cell types"),
+        "panels": [("b", "plaus_nhood_mean_self_zscore",
+                    "Mean z-score of\nneighbourhood enrichment diagonal"),
+                   ("c", "plaus_local_purity_zscore",
+                    "Local spatial purity z-score")],
     },
     {
-        "letter": "b",
-        "heading": "Transcriptional coherence of the mapped cell types",
-        "sketch": "sketch_coherence",
-        "panels": [("plaus_modularity_st_expression",
-                    "modularity over mapped\ncell types in spatial data"),
-                   ("plaus_modularity_shared",
-                    "modularity over\nthe reference's cells")],
+        "sketch": ("d", "sketch_coherence",
+                   "Transcriptional coherence of\nthe mapped cell types"),
+        "panels": [("e", "plaus_modularity_st_expression",
+                    "Modularity over mapped\ncell types in spatial data"),
+                   ("f", "plaus_modularity_shared",
+                    "Modularity over\nthe reference's cells")],
     },
 ]
 
@@ -118,27 +119,35 @@ def build(manifest: dict) -> None:
     # gaps, so the row fills the figure's width exactly.
     gap = (WIDTH - 2 * PAD - w_sketch - 2 * w_scatter) / 2
     xs = [PAD, PAD + w_sketch + gap, PAD + w_sketch + w_scatter + 2 * gap]
+    widths = [w_sketch, w_scatter, w_scatter]
 
     y = ROW_TOP
     for row in ROWS:
-        top = y + ROW_HEAD_DROP
-        text(row["letter"], PAD, top - ROW_HEAD_DROP, size=FS_LETTER)
-        text(row["heading"], PAD + HEAD_DX, top - ROW_HEAD_DROP + 9)
+        cells = [row["sketch"], *row["panels"]]
+        # each caption wrapped to the width its own cell leaves beside the letter
+        heads = [wrap(body, width - HEAD_DX, FS_HEAD)
+                 for (_letter, _name, body), width in zip(cells, widths)]
+        # Every caption in the row *starts* on the same line, so the three
+        # letters sit on one horizontal row; a caption shorter than the tallest
+        # one leaves the slack above the image rather than above itself.
+        lines = max(head.count("\n") + 1 for head in heads)
+        top = y + lines * LINE + HEAD_GAP
 
-        _w_sketch, h_sketch = image(row["sketch"], xs[0], top, manifest)
+        for (letter, _name, _body), head, x in zip(cells, heads, xs):
+            text(letter, x, y, size=FS_LETTER)
+            text(head, x + HEAD_DX, y + 9)
+
+        _w_sketch, h_sketch = image(row["sketch"][1], xs[0], top, manifest)
         # The two words naming the sketch's halves, on the empty strip each rect
         # leaves above it. Scaled by the sketch's own height -- it is shorter
         # than a scatter, so the row height would drift both labels downwards.
         for label, fraction in zip(manifest["sketch_labels"],
-                                   manifest["sketch_tops"][row["sketch"]]):
+                                   manifest["sketch_tops"][row["sketch"][1]]):
             text(label, xs[0] + 6,
                  top + fraction * h_sketch - text_size(label, FS_HEAD)[1])
 
-        box = manifest["scatter_box"]
-        for x, (name, heading) in zip(xs[1:], row["panels"]):
-            w, _h = image(name, x, top, manifest)
-            centre_x = x + (box["left"] + box["width"] / 2) * w
-            text(heading, centre_x, top - PANEL_HEAD_DROP, centre=True)
+        for x, (_letter, name, _body) in zip(xs[1:], row["panels"]):
+            image(name, x, top, manifest)
 
         y = top + h_row + ROW_GAP
 

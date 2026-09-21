@@ -1,7 +1,7 @@
 # Section 04 — Biological and topological plausibility (Fig. 2.4)
 
 Same corpus and same comparison as section 03 — `experiment1/` through
-`aim_experiments.exp1`, AIM against the annotation baseline with the same mapper
+`spatialaim_experiments.exp1`, SpatialAIM against the annotation baseline with the same mapper
 on both sides — but on the other two criteria:
 
 | Row | Criterion | Measures |
@@ -24,7 +24,7 @@ criterion and shows its chance level in one picture.
 python sections/04_biology/explore.py                # the numbers, printed
 python sections/04_biology/panels.py                 # seven panels + panels.json
 python sections/04_biology/make_excalidraw.py        # OVERWRITES the drawing
-python -m aim_experiments.render 2_4                 # -> AIM-Overleaf/figures/fig_2_4.pdf
+python -m spatialaim_experiments.render 2_4                 # -> SpatialAIM-Overleaf/figures/fig_2_4.pdf
 ```
 
 ## One mapper per figure
@@ -49,7 +49,7 @@ Above the parity diagonal, out of ten references (September 2026):
 | TACCO | 7 | 6 | 7 | 5 |
 | DOT | 6 | 4 | 8 | 6 |
 
-Modularity over the reference's cells is the one panel where AIM usually is not
+Modularity over the reference's cells is the one panel where SpatialAIM usually is not
 ahead, and it is also the one whose Δ correlates positively with Δ number of cell
-types (ρ ≈ +0.4 to +0.8, negative for the other three) — it mostly reflects AIM
+types (ρ ≈ +0.4 to +0.8, negative for the other three) — it mostly reflects SpatialAIM
 using fewer cell types than the annotation.

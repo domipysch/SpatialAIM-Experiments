@@ -2,13 +2,13 @@
 #
 #   (d) maps       the slice mapped from the 3-type annotation (K=3, all it can
 #                  return) next to the same slice mapped from the over-clustering
-#                  at the K AIM proposes
-#   (e) selection  AIM's criterion scores over K for the over-clustering run
+#                  at the K SpatialAIM proposes
+#   (e) selection  SpatialAIM's criterion scores over K for the over-clustering run
 #   (f) what the three labels were summarising: each proposed state's composition
 #                  in the fine annotation, which the run never saw
 #
 # Row letters continue from plot_invisible_split.py, so this stacks under it.
-# Run from aim_env (see the section README).
+# Run from spatialaim_env (see the section README).
 
 import json
 import logging
@@ -20,8 +20,8 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from aim_experiments import paths
-from aim_experiments.style import (
+from spatialaim_experiments import paths
+from spatialaim_experiments.style import (
     C_COHERENCE,
     C_NONN,
     C_RECON,
@@ -46,7 +46,7 @@ K_ANNOTATION = 3
 
 # Shades within a family, superficial -> deep and CGE -> MGE, so that the
 # refinement of a coarse label reads as a shading of its colour. The middle of
-# each ramp is the family's own colour in aim_experiments.style.
+# each ramp is the family's own colour in spatialaim_experiments.style.
 C_EXC = ["#EFAE85", "#D55E00", "#7A3600"]
 C_INH = ["#8FCFF0", "#0072B2", "#004E7A"]
 
@@ -224,7 +224,7 @@ def main() -> None:
         draw_map(ax, xy, [colours.get(s, C_GREY) for s in spot_states(root, k)], title)
     fig.text(0.008, 0.985, "d", fontsize=9, fontweight="bold", ha="left", va="top")
 
-    # ---------------- (e) what AIM scores ----------------
+    # ---------------- (e) what SpatialAIM scores ----------------
     ax = fig.add_axes([0.385, 0.32, 0.200, 0.50])
     scores = pd.read_csv(run_dir(RUN_OVERCLUSTER) / "k_comparison.csv")
     ax.axvspan(k_best - 0.8, k_best + 0.8, color="0.85", alpha=0.6, lw=0)

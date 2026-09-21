@@ -2,12 +2,12 @@
 # ---------------------------------------------------------------------------
 # Experiment 1 - write the missing k_selection.json for every run root.
 #
-#   conda run -n aim_env python 04_write_k_selection.py
-#   conda run -n aim_env python 04_write_k_selection.py --dry-run
+#   conda run -n spatialaim_env python 04_write_k_selection.py
+#   conda run -n spatialaim_env python 04_write_k_selection.py --dry-run
 #
 # The sweeps were run with a version that wrote k_comparison.csv but no
 # k_selection.json. Nothing is lost: the proposal is derived from that table
-# alone (aim.analysis.ksweep.select_k reads no other file), so this recomputes
+# alone (spatialaim.analysis.ksweep.select_k reads no other file), so this recomputes
 # it for every run root without touching a single mapping.
 #
 # It also detects *truncated* tables. A sweep resumed with --k_max writes a
@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from aim.analysis.ksweep import compare_k_runs, select_k
+from spatialaim.analysis.ksweep import compare_k_runs, select_k
 
 DEFAULT_OUT_ROOT = "/data/bionets/zi69hebi/Alignment/02_Results/experiment1"
 

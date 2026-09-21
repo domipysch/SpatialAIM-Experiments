@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aim-experiments"
+name = "spatialaim-experiments"
 version = "0.1.0"
-description = "Experiments and figures for the AIM paper; uses the spatial-aim package"
+description = "Experiments and figures for the SpatialAIM paper; uses the spatial-aim package"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Dominik Pysch", email = "dominik.pysch@fau.de" }]
 
-# Everything here is already in aim_env, which is the environment the experiments
+# Everything here is already in spatialaim_env, which is the environment the experiments
 # run in (see README). Install with --no-deps so pip never tries to resolve the
 # scientific stack or fetch spatial-aim over the network:
 #

@@ -1,9 +1,9 @@
 """Render an Excalidraw results figure to the PDF the paper includes.
 
-    python -m aim_experiments.render 2_3
+    python -m spatialaim_experiments.render 2_3
         00_Obsidian/Excalidraw/figure_2_3.excalidraw.md
-            -> AIM-Overleaf/figures/fig_2_3.pdf
-    python -m aim_experiments.render 2_3 --out preview.png   (a look, not the paper)
+            -> SpatialAIM-Overleaf/figures/fig_2_3.pdf
+    python -m spatialaim_experiments.render 2_3 --out preview.png   (a look, not the paper)
 
 It reads the drawing itself, not the script that generates it, so anything moved
 or edited by hand in Obsidian is what ends up in the paper. This is a stand-in
@@ -120,7 +120,7 @@ def main() -> None:
                     help="which drawing to render, e.g. 2_3 or 2_2_wann "
                          "(default 2_2)")
     ap.add_argument("--out", type=Path,
-                    help="write here instead of AIM-Overleaf/figures/fig_<figure>.pdf; "
+                    help="write here instead of SpatialAIM-Overleaf/figures/fig_<figure>.pdf; "
                          "give it a .png suffix for a quick look that never touches "
                          "the paper")
     args = ap.parse_args()

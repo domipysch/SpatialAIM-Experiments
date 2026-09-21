@@ -8,7 +8,7 @@ figures need:
 
     baseline   annotation mode, K = T (the identity cut: every spot maps
                straight onto the author's annotation)
-    aim        Leiden mode, K = best.overall from k_selection.json
+    spatialaim        Leiden mode, K = best.overall from k_selection.json
 
 Both are read from the same column of the same metric table, so the comparison
 is apples to apples.
@@ -26,8 +26,8 @@ pairs are retina islands.
 
 Usage
 -----
-    python -m aim_experiments.exp1            # build + cache + summarise
-    python -m aim_experiments.exp1 --force    # ignore the cache
+    python -m spatialaim_experiments.exp1            # build + cache + summarise
+    python -m spatialaim_experiments.exp1 --force    # ignore the cache
 """
 
 from __future__ import annotations
@@ -49,19 +49,19 @@ logger = logging.getLogger(__name__)
 
 
 def _kselection():
-    """``aim.metrics.kselection`` from the installed ``spatial-aim``, loaded
+    """``spatialaim.metrics.kselection`` from the installed ``spatial-aim``, loaded
     straight from its file.
 
-    Importing it by name would first execute ``aim/metrics/__init__.py``, which
+    Importing it by name would first execute ``spatialaim/metrics/__init__.py``, which
     pulls in the scanpy/anndata stack for metrics this module never touches. The
     module itself needs only numpy and pandas. Its *location* still comes from
-    the installed package -- ``aim/__init__.py`` is import-light by design -- so
+    the installed package -- ``spatialaim/__init__.py`` is import-light by design -- so
     this is the same scoring code that wrote every ``k_selection.json`` on disk,
     without paying for the rest of the package.
     """
-    import aim
+    import spatialaim
 
-    path = Path(aim.__file__).parent / "metrics" / "kselection.py"
+    path = Path(spatialaim.__file__).parent / "metrics" / "kselection.py"
     spec = importlib.util.spec_from_file_location("aim_kselection", path)
     module = importlib.util.module_from_spec(spec)
     # @dataclass resolves its own module through sys.modules, so register first
@@ -107,7 +107,7 @@ def pairs() -> pd.DataFrame:
         f"{int(r.PairID):03d}_{r.scName}__{r.stName}" for r in df.itertuples()
     ]
     # key0 is the author's primary annotation and the baseline used in the
-    # AIM-vs-annotation panel; key1, where it exists, is the second granularity.
+    # SpatialAIM-vs-annotation panel; key1, where it exists, is the second granularity.
     df["key0"] = [k[0] if k else None for k in df["ann_keys"]]
     df["key1"] = [k[1] if len(k) > 1 else None for k in df["ann_keys"]]
     return df
@@ -134,7 +134,7 @@ def _read_run_root(run_root: Path, out_root: Path) -> dict | None:
         best = (selection.get("best") or {}).get("overall")
         if best is None:
             return None
-        k, role = int(best["k"]), "aim"
+        k, role = int(best["k"]), "spatialaim"
     else:
         # the identity cut: the author's annotation, mapped as it stands
         k, role = n_start, "baseline"
@@ -143,9 +143,9 @@ def _read_run_root(run_root: Path, out_root: Path) -> dict | None:
         return None
     row = table.loc[k]
 
-    # The overall score at the level that is actually used -- AIM's proposal, or
+    # The overall score at the level that is actually used -- SpatialAIM's proposal, or
     # the annotation's identity cut. Recorded for *both* roles because it is what
-    # decides which of a reference's annotations becomes the baseline: AIM's K is
+    # decides which of a reference's annotations becomes the baseline: SpatialAIM's K is
     # chosen by the overall score, so the annotation must be too, and not by
     # whichever measure a given panel happens to plot.
     scores = KS.score_table(table.reset_index(drop=True))
@@ -207,7 +207,13 @@ def load(force: bool = False) -> pd.DataFrame:
     """The cached table, built on first use. Delete ``CACHE`` or pass ``force``
     after new runs have been collected."""
     if CACHE.exists() and not force:
-        return pd.read_csv(CACHE)
+        cached = pd.read_csv(CACHE)
+        # A cache written before the rename labels the method's own rows "aim".
+        # Every caller filters on "spatialaim", so such a table joins to nothing
+        # and the panels come out empty -- rebuild instead.
+        if "spatialaim" in set(cached["role"]):
+            return cached
+        logger.info("cache predates the SpatialAIM rename; rebuilding")
     df = build()
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(CACHE, index=False)
@@ -221,22 +227,22 @@ def load(force: bool = False) -> pd.DataFrame:
 
 def paired(df: pd.DataFrame, metric: str = "cossim_hard_raw_spot",
            baseline: str = "best") -> pd.DataFrame:
-    """AIM (Leiden, proposed K) against the annotation baseline (K = T), joined
-    per (pair, tree, mapper). One row per comparison; `delta` is AIM - baseline.
+    """SpatialAIM (Leiden, proposed K) against the annotation baseline (K = T), joined
+    per (pair, tree, mapper). One row per comparison; `delta` is SpatialAIM - baseline.
 
-    ``baseline`` picks which annotation AIM is measured against where the
+    ``baseline`` picks which annotation SpatialAIM is measured against where the
     reference carries more than one:
 
     ``best``  the one whose identity cut scores highest **overall** -- the
               harmonic mean across reconstruction, spatial organisation and
-              coherence, exactly the score by which AIM picks its own K. The
+              coherence, exactly the score by which SpatialAIM picks its own K. The
               default, and the only symmetric choice: selecting the annotation on
               the measure a panel happens to plot would hand the baseline a
-              per-panel advantage AIM is never given.
+              per-panel advantage SpatialAIM is never given.
     ``key0``  the annotation the dataset index lists first.
 
     Which of two annotations is called the primary one in the dataset index is
-    arbitrary, and it matters: on 01_mouse-ssp, AIM beats ``cellType`` (3 types)
+    arbitrary, and it matters: on 01_mouse-ssp, SpatialAIM beats ``cellType`` (3 types)
     by +0.26 on per-spot cosine and loses to ``cellTypeMinor`` (22 types) by
     -0.05. Comparing against the better of the author's own options removes that
     lever.
@@ -244,7 +250,7 @@ def paired(df: pd.DataFrame, metric: str = "cossim_hard_raw_spot",
     Both sides always use the same mapper, so the difference is the starting
     partition, not the aligner.
     """
-    aim = df[df["role"] == "aim"]
+    spatialaim = df[df["role"] == "spatialaim"]
     base = df[df["role"] == "baseline"]
     join = ["pair_dir", "tree", "mapper"]
     if baseline == "key0":
@@ -254,7 +260,7 @@ def paired(df: pd.DataFrame, metric: str = "cossim_hard_raw_spot",
     else:
         raise ValueError(f"baseline must be 'best' or 'key0', got {baseline!r}")
 
-    out = aim.merge(
+    out = spatialaim.merge(
         base[join + [metric, "k", "ann_key", "granularity"]],
         on=join, suffixes=("", "_base"), validate="one_to_one",
     )
@@ -305,7 +311,7 @@ def summarise(df: pd.DataFrame) -> None:
         agg = per_reference(pr)
         wins = (agg["mean"] > 0).sum()
         print(f"\n=== {metric}")
-        print(f"  AIM vs annotation: {len(pr)} comparisons, "
+        print(f"  SpatialAIM vs annotation: {len(pr)} comparisons, "
               f"{(pr['delta'] > 0).mean():.1%} positive; "
               f"per (reference,mapper,tree) cells positive: {wins}/{len(agg)}")
         print("  mean delta per reference (averaged over mappers and trees):")

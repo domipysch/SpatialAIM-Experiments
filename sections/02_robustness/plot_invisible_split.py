@@ -6,10 +6,10 @@
 #                 same embedding twice, because the panel cannot tell the halves
 #                 apart
 #   (b) maps      the mapper on the original annotation, the mapper on the
-#                 annotation with the split, and AIM's output at the K it proposes
-#   (c) selection AIM's criterion scores over K, with the K each one picks
+#                 annotation with the split, and SpatialAIM's output at the K it proposes
+#   (c) selection SpatialAIM's criterion scores over K, with the K each one picks
 #
-# Run from aim_env (see the section README).
+# Run from spatialaim_env (see the section README).
 
 import argparse
 import json
@@ -22,8 +22,8 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from aim_experiments import paths
-from aim_experiments.style import (
+from spatialaim_experiments import paths
+from spatialaim_experiments.style import (
     C_COHERENCE,
     C_GABA,
     C_GLUT,
@@ -170,7 +170,7 @@ def main() -> None:
     panels = [
         ("original", 3, f"{name} mapping,\noriginal annotation"),
         ("split", 4, f"{name} mapping,\nsplit annotation"),
-        ("split", k_split, f"AIM with {name},\nsplit annotation,\n"
+        ("split", k_split, f"SpatialAIM with {name},\nsplit annotation,\n"
                            f"proposed solution $K$={k_split}"),
     ]
     for i, (reference, k, title) in enumerate(panels):
@@ -179,7 +179,7 @@ def main() -> None:
         ax.title.set_fontsize(6.5)
     fig.text(0.283, 0.985, "b", fontsize=9, fontweight="bold", ha="left", va="top")
 
-    # ---------------- (c) what AIM scores ----------------
+    # ---------------- (c) what SpatialAIM scores ----------------
     ax = fig.add_axes([0.800, 0.40, 0.175, 0.44])
     split = pd.DataFrame(res["scores"]["split"])
     best_overall = res["selection"]["split"]["best"]["overall"]

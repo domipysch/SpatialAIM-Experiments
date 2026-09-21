@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
 # Experiment 1 - server setup: create all four conda envs and install
-# `spatial-aim` from TestPyPI into aim_env.
+# `spatial-aim` from TestPyPI into spatialaim_env.
 #
 #   bash 01_setup_envs.sh                      # full setup
-#   AIM_VERSION=0.1.4 bash 01_setup_envs.sh    # pin a TestPyPI version
+#   SPATIALAIM_VERSION=0.1.4 bash 01_setup_envs.sh    # pin a TestPyPI version
 #   ONLY=tangram_env bash 01_setup_envs.sh     # rebuild just one aligner env
 #
 # The aligner envs (tangram_env / tacco_env / dot_env) get **only their own
-# aligner** - no `spatial-aim`. AIM runs their wrapper scripts by path
+# aligner** - no `spatial-aim`. SpatialAIM runs their wrapper scripts by path
 # (`conda run -n <env> python .../run_<aligner>.py …`), and those wrappers import
-# nothing from `aim`.
+# nothing from `spatialaim`.
 #
-# The env specs ship inside the wheel (aim/reference_aligners/environment_*.yml),
+# The env specs ship inside the wheel (spatialaim/reference_aligners/environment_*.yml),
 # so nothing here needs the git repository.
 #
 # NOTHING IS EVER DELETED: this script does not remove conda envs and does not
@@ -20,17 +20,17 @@
 # rebuild one, `conda env remove -n <env>` yourself first.
 #
 # Env vars:
-#   AIM_ENV        name of the AIM env to create           (default aim_env)
-#   AIM_VERSION    TestPyPI version to pin                 (default: latest)
-#   PYTHON_VERSION python for the AIM env                  (default 3.13)
-#   ONLY           only build this env (aim_env|tangram_env|tacco_env|dot_env)
+#   SPATIALAIM_ENV        name of the SpatialAIM env to create           (default spatialaim_env)
+#   SPATIALAIM_VERSION    TestPyPI version to pin                 (default: latest)
+#   PYTHON_VERSION python for the SpatialAIM env                  (default 3.13)
+#   ONLY           only build this env (spatialaim_env|tangram_env|tacco_env|dot_env)
 #   SKIP_DOT_R=1   skip the DOT R package install (needs network + GitHub)
 # ---------------------------------------------------------------------------
 set -uo pipefail
 
-AIM_ENV="${AIM_ENV:-aim_env}"
+SPATIALAIM_ENV="${SPATIALAIM_ENV:-spatialaim_env}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.13}"
-AIM_VERSION="${AIM_VERSION:-}"
+SPATIALAIM_VERSION="${SPATIALAIM_VERSION:-}"
 ONLY="${ONLY:-}"
 SKIP_DOT_R="${SKIP_DOT_R:-0}"
 
@@ -41,10 +41,10 @@ PYPI_INDEX="https://pypi.org/simple"
 # The package itself is then installed --no-deps from TestPyPI, so a TestPyPI
 # mirror of a dependency can never be picked up by accident.
 #
-# pandas is capped below 3: with pandas' new string default, aim's own h5ad writes
-# (src/aim/io.py) would hit anndata's nullable-string guard the way the aligner
-# wrappers did. The wrappers are fixed; io.py is not, so keep aim_env on pandas 2.
-AIM_DEPS=(
+# pandas is capped below 3: with pandas' new string default, spatialaim's own h5ad writes
+# (src/spatialaim/io.py) would hit anndata's nullable-string guard the way the aligner
+# wrappers did. The wrappers are fixed; io.py is not, so keep spatialaim_env on pandas 2.
+SPATIALAIM_DEPS=(
   "numpy>=1.26" "scipy>=1.11" "pandas>=2.2,<3" "pyyaml>=6"
   "anndata>=0.12" "scanpy>=1.11" "squidpy>=1.4"
   "igraph>=0.11" "leidenalg>=0.10" "umap-learn>=0.5"
@@ -81,42 +81,42 @@ env_exists() { conda env list | awk '{print $1}' | grep -qx "$1"; }
 export PIP_NO_CACHE_DIR="${PIP_NO_CACHE_DIR:-1}"
 
 spec="spatial-aim"
-[[ -n "$AIM_VERSION" ]] && spec="spatial-aim==$AIM_VERSION"
+[[ -n "$SPATIALAIM_VERSION" ]] && spec="spatial-aim==$SPATIALAIM_VERSION"
 
-# --- 1. aim_env -------------------------------------------------------------
-if wanted "$AIM_ENV"; then
-  if env_exists "$AIM_ENV"; then
-    log "$AIM_ENV already exists - reusing it (remove it yourself to rebuild)"
+# --- 1. spatialaim_env -------------------------------------------------------------
+if wanted "$SPATIALAIM_ENV"; then
+  if env_exists "$SPATIALAIM_ENV"; then
+    log "$SPATIALAIM_ENV already exists - reusing it (remove it yourself to rebuild)"
   else
-    log "Creating $AIM_ENV (python $PYTHON_VERSION)"
-    conda create -y -n "$AIM_ENV" "python=$PYTHON_VERSION" pip || die "conda create failed"
+    log "Creating $SPATIALAIM_ENV (python $PYTHON_VERSION)"
+    conda create -y -n "$SPATIALAIM_ENV" "python=$PYTHON_VERSION" pip || die "conda create failed"
   fi
 
-  log "Installing dependencies from PyPI into $AIM_ENV"
-  conda run --no-capture-output -n "$AIM_ENV" python -m pip install \
+  log "Installing dependencies from PyPI into $SPATIALAIM_ENV"
+  conda run --no-capture-output -n "$SPATIALAIM_ENV" python -m pip install \
     --no-cache-dir --upgrade pip || die "pip upgrade failed"
-  conda run --no-capture-output -n "$AIM_ENV" python -m pip install \
-    --no-cache-dir --index-url "$PYPI_INDEX" "${AIM_DEPS[@]}" \
+  conda run --no-capture-output -n "$SPATIALAIM_ENV" python -m pip install \
+    --no-cache-dir --index-url "$PYPI_INDEX" "${SPATIALAIM_DEPS[@]}" \
     || die "dependency install failed"
 
   # --no-cache-dir matters most here: pip would otherwise serve a wheel it already
   # cached for this version, so a re-uploaded TestPyPI build of the same version
   # would install stale code. Always fetch it fresh.
-  log "Installing $spec from TestPyPI into $AIM_ENV (--no-deps, uncached)"
-  conda run --no-capture-output -n "$AIM_ENV" python -m pip install \
+  log "Installing $spec from TestPyPI into $SPATIALAIM_ENV (--no-deps, uncached)"
+  conda run --no-capture-output -n "$SPATIALAIM_ENV" python -m pip install \
     --no-cache-dir --no-deps --force-reinstall --index-url "$TESTPYPI_INDEX" "$spec" \
     || die "spatial-aim install failed"
 
-  conda run --no-capture-output -n "$AIM_ENV" aim --version \
-    || die "'aim' is not runnable in $AIM_ENV"
+  conda run --no-capture-output -n "$SPATIALAIM_ENV" spatialaim --version \
+    || die "'spatialaim' is not runnable in $SPATIALAIM_ENV"
 fi
 
-env_exists "$AIM_ENV" || die "$AIM_ENV is required (it ships the aligner env specs)"
+env_exists "$SPATIALAIM_ENV" || die "$SPATIALAIM_ENV is required (it ships the aligner env specs)"
 
 # The aligner env specs and wrapper scripts live inside the installed package.
-RA_DIR="$(conda run -n "$AIM_ENV" python -c \
-  'import pathlib, aim.reference_aligners as m; print(pathlib.Path(m.__file__).parent)' | tr -d '\r')"
-[[ -d "$RA_DIR" ]] || die "could not locate aim.reference_aligners package data"
+RA_DIR="$(conda run -n "$SPATIALAIM_ENV" python -c \
+  'import pathlib, spatialaim.reference_aligners as m; print(pathlib.Path(m.__file__).parent)' | tr -d '\r')"
+[[ -d "$RA_DIR" ]] || die "could not locate spatialaim.reference_aligners package data"
 log "Aligner env specs + wrapper scripts: $RA_DIR"
 
 # --- 2. the three aligner envs (no spatial-aim in any of them) --------------
@@ -149,9 +149,9 @@ if wanted dot_env && env_exists dot_env && [[ "$SKIP_DOT_R" != "1" ]]; then
 fi
 
 # --- 3. Verify ---------------------------------------------------------------
-log "Which aligners does AIM see? (env present = usable)"
-conda run --no-capture-output -n "$AIM_ENV" python - <<'PY'
-from aim.reference_aligners.registry import (
+log "Which aligners does SpatialAIM see? (env present = usable)"
+conda run --no-capture-output -n "$SPATIALAIM_ENV" python - <<'PY'
+from spatialaim.reference_aligners.registry import (
     REFERENCE_ALIGNERS, available_reference_aligners, conda_exe,
 )
 print("conda:", conda_exe())

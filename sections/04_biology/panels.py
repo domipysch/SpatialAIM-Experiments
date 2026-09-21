@@ -7,14 +7,14 @@ Same division of labour as figures 2.1-2.3: the images carry only what is
 anchored to data. Letters, headings and legends are drawn in Excalidraw, and
 everything else belongs in the caption.
 
-Two rows of three, one row per criterion:
+Two rows of three, one row per criterion; every cell carries its own letter:
 
     a  sketch_spatial     what the criterion means, drawn on a toy tissue patch
-       plaus_nhood_...    AIM against the annotation, neighbourhood enrichment
-       plaus_local_...    the same, local spatial purity
-    b  sketch_coherence   the same idea on a toy expression graph
-       plaus_modularity_st_expression       modularity over the slice's spots
-       plaus_modularity_shared              modularity over the reference's cells
+    b  plaus_nhood_...    SpatialAIM against the annotation, neighbourhood enrichment
+    c  plaus_local_...    the same, local spatial purity
+    d  sketch_coherence   the same idea on a toy expression graph
+    e  plaus_modularity_st_expression       modularity over the slice's spots
+    f  plaus_modularity_shared              modularity over the reference's cells
 
     dk_bar               the colour bar all four scatters share
 
@@ -27,7 +27,7 @@ Their only difference is where the nodes sit: a tissue rectangle in row (a), an
 expression embedding in row (b). Same question, two graphs.
 
 The scatters use **one mapper**, `MAPPER` below. Both axes of a panel always run
-the same aligner -- AIM's proposal against the annotation's identity cut -- so
+the same aligner -- SpatialAIM's proposal against the annotation's identity cut -- so
 the mapper is a paired factor and never a confound; showing all five turned each
 panel into 50 points for 10 datasets and read as clutter. That the result holds
 for every aligner belongs in the text, where the numbers are.
@@ -66,9 +66,9 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 import explore as B                           # noqa: E402  (sibling script)
-from aim_experiments import exp1 as L
-from aim_experiments import paths
-from aim_experiments.style import (
+from spatialaim_experiments import exp1 as L
+from spatialaim_experiments import paths
+from spatialaim_experiments.style import (
     CMAP_DK,
     DK_LIMIT,
     INK,
@@ -109,21 +109,29 @@ def folders(mapper: str) -> tuple[Path, Path]:
 # scale, so anything else would bend the parity diagonal off 45 degrees. The
 # rect is derived from the margins rather than typed, so ``set_aspect("equal")``
 # has nothing left to shrink and the four panels tile exactly.
-SIDE = 1.65                       # print inches of the plotting box itself
+SIDE = 1.58                       # print inches of the plotting box itself
 # The right margin holds the second half of the last x tick label: the axis now
-# ends *on* a tick, so "1000" overhangs the box by half its width.
-MARGIN = dict(left=0.52, bottom=0.38, right=0.18, top=0.08)
+# ends *on* a tick, so "1000" overhangs the box by half its width. Left and
+# bottom each hold a two-line axis title -- the measure over the side of the
+# comparison -- which is what the box gave up 0.07 in of its side for. The top
+# holds nothing: every y title is now shorter, set rotated, than the box it is
+# centred on. It was 0.18 while panel b's read "neighbourhood enrichment  z",
+# which overran the box and had its "z" cut off by the edge of the image.
+MARGIN = dict(left=0.66, bottom=0.53, right=0.18, top=0.08)
 SCATTER_SIZE = (SIDE + MARGIN["left"] + MARGIN["right"],
                 SIDE + MARGIN["bottom"] + MARGIN["top"])
 SCATTER_RECT = (MARGIN["left"] / SCATTER_SIZE[0], MARGIN["bottom"] / SCATTER_SIZE[1],
                 SIDE / SCATTER_SIZE[0], SIDE / SCATTER_SIZE[1])
-BAR_SIZE = (2.95, 0.66)   # wide enough for the label under it, not the gradient
+# Wide enough for the label under it, not for the gradient. 3.45 rather than the
+# 2.95 it was: "SpatialAIM" is five characters longer than the name it replaced,
+# and the label was being clipped at both ends.
+BAR_SIZE = (3.45, 0.66)
 
 # The sketch column is *shorter* than a scatter, not equal: it needs a foot for
 # its two corner arrows, where the scatter needs one for tick labels plus an axis
 # title. Both start at the row's top edge, so their plotting bands still coincide
 # -- the sketch simply stops earlier.
-SKETCH_SIZE = (2.15, 0.0)   # filled in below, once the axis margins are known
+SKETCH_SIZE = (2.05, 0.0)   # filled in below, once the axis margins are known
 
 # The three cell-type hues of figures 2.1 and 2.2, reused in the sketches so a
 # reader who has seen those recognises what the dots stand for.
@@ -145,25 +153,31 @@ SKETCH_SIZE = (SKETCH_SIZE[0], MARGIN["top"] + SIDE + AXIS_FOOT)
 SKETCH_AXES = {"sketch_spatial": ("x", "y"),
                "sketch_coherence": ("UMAP 1", "UMAP 2")}
 
-# Cell-type difference: CMAP_DK and DK_LIMIT come from aim_experiments.style,
-# the same scale and clip figure 2.3 uses for the same quantity -- purple = AIM
+# Cell-type difference: CMAP_DK and DK_LIMIT come from spatialaim_experiments.style,
+# the same scale and clip figure 2.3 uses for the same quantity -- purple = SpatialAIM
 # used fewer cell types, green = more.
 
-# Axis label per measure. The two z-scores say "z" so nobody reads them as the
-# raw quantity; the two modularities name the graph they are measured on, since
-# that is exactly what separates them.
+# The two lines an axis is titled with, per measure, as (x, y). The panel's
+# letter names the measure too, in the drawing, but an axis title is what makes a
+# scatter readable on its own -- and it has to be short enough to sit against a
+# 1.58 in box. The two z-scores say "z" so nobody reads them as the raw quantity;
+# the two modularities name the graph they are measured on, since that is exactly
+# what separates them.
+
+
+def _titles(measure: str) -> tuple[str, str]:
+    """The measure over the side of the comparison, on both axes."""
+    return f"{measure}\nwhen mapping annotation", f"{measure}\nwhen using SpatialAIM"
+
+
 AXIS = {
-    "nhood_mean_self_zscore": "neighbourhood\nenrichment  z",
-    "local_purity_zscore": "local spatial\npurity  z",
-    "modularity_st_expression": "modularity,\nspatial expression",
-    "modularity_shared": "modularity,\nreference expression",
-}
-# Same four measures, in the width one tick label of row (b) can carry.
-TICK = {
-    "nhood_mean_self_zscore": "neighbourhood\nenrichment",
-    "local_purity_zscore": "local spatial\npurity",
-    "modularity_st_expression": "modularity\nspatial",
-    "modularity_shared": "modularity\nreference",
+    # Panel b is the user's own wording. Its caption spells the measure out
+    # directly above the panel, so the axes carry the short form, and the side of
+    # the comparison is what is read first going up the y axis.
+    "nhood_mean_self_zscore": _titles("mean z-score"),
+    "local_purity_zscore": _titles("z-score"),
+    "modularity_st_expression": _titles("modularity"),
+    "modularity_shared": _titles("modularity"),
 }
 
 def save(fig, name: str, preview_only: bool = False) -> None:
@@ -177,19 +191,19 @@ def save(fig, name: str, preview_only: bool = False) -> None:
 
 
 # ---------------------------------------------------------------------------
-# (a) AIM against the annotation
+# (a) SpatialAIM against the annotation
 # ---------------------------------------------------------------------------
 
 def cells(df: pd.DataFrame, metric: str, mapper: str | None = None) -> pd.DataFrame:
     """One row per (reference, mapper): the reference's mean over its slices, for
-    AIM, for the annotation baseline, and for the difference in cell types.
+    SpatialAIM, for the annotation baseline, and for the difference in cell types.
 
     ``mapper`` keeps only that one, leaving ten points per panel."""
     pr = B.frames(df, metric)
     if mapper is not None:
         pr = pr[pr["mapper"] == mapper]
     return (pr.groupby(["reference", "mapper"])
-              .agg(aim=(metric, "mean"), ann=(f"{metric}_base", "mean"),
+              .agg(spatialaim=(metric, "mean"), ann=(f"{metric}_base", "mean"),
                    dk=("dk", "mean"))
               .reset_index())
 
@@ -242,18 +256,20 @@ def _log_axis(lo: float, hi: float) -> tuple[tuple[float, float], list[float]]:
 
 def panel_scatter(cell: pd.DataFrame, metric: str, name: str,
                   preview_only: bool = False) -> None:
-    """The measure names are drawn in Excalidraw, above the panels, so all four
-    images keep identical geometry and tile without adjustment."""
+    """Both axes are titled with the measure over the side of the comparison, so
+    a panel says what it plots without its letter. The letter and its caption are
+    drawn in Excalidraw, above the panel, which keeps all four images the same
+    geometry so they tile without adjustment."""
     fig = plt.figure(figsize=SCATTER_SIZE)
     ax = fig.add_axes(list(SCATTER_RECT))
 
-    lo = float(min(cell["aim"].min(), cell["ann"].min()))
-    hi = float(max(cell["aim"].max(), cell["ann"].max()))
+    lo = float(min(cell["spatialaim"].min(), cell["ann"].min()))
+    hi = float(max(cell["spatialaim"].max(), cell["ann"].max()))
     log = metric in LOG_METRICS
     span, ticks = (_log_axis if log else _linear_axis)(lo, hi)
     ax.plot(span, span, color=PALE, lw=0.9, zorder=1)      # parity
 
-    ax.scatter(cell["ann"], cell["aim"], c=np.clip(cell["dk"], -DK_LIMIT, DK_LIMIT),
+    ax.scatter(cell["ann"], cell["spatialaim"], c=np.clip(cell["dk"], -DK_LIMIT, DK_LIMIT),
                cmap=CMAP_DK, vmin=-DK_LIMIT, vmax=DK_LIMIT, s=34,
                linewidths=0.5, edgecolors=INK, zorder=2)
 
@@ -269,8 +285,9 @@ def panel_scatter(cell: pd.DataFrame, metric: str, name: str,
     ax.set_xlim(*span)
     ax.set_ylim(*span)
     ax.set_aspect("equal")
-    ax.set_xlabel("mapping annotation", labelpad=1.5)
-    ax.set_ylabel("AIM", labelpad=2.0)
+    x_title, y_title = AXIS[metric]
+    ax.set_xlabel(x_title, labelpad=1.5, linespacing=1.05)
+    ax.set_ylabel(y_title, labelpad=2.0, linespacing=1.05)
     ax.tick_params(pad=1.5)
     bare(ax)
     save(fig, name, preview_only)
@@ -416,7 +433,7 @@ def panel_dk_bar() -> None:
     bar.set_yticks([])
     bar.set_xticks([-DK_LIMIT, 0, DK_LIMIT])
     bar.set_xticklabels([f"≤{-DK_LIMIT}", "0", f"≥+{DK_LIMIT}"])
-    bar.set_xlabel("Δ number of cell types  (AIM − annotation)", labelpad=2.5)
+    bar.set_xlabel("Δ number of cell types  (SpatialAIM − annotation)", labelpad=2.5)
     for spine in bar.spines.values():
         spine.set_visible(False)
     bar.tick_params(length=1.5, pad=1.0)
@@ -442,7 +459,7 @@ def main(mapper: str | None = MAPPER) -> None:
         if mapper is not None:
             pr = pr[pr["mapper"] == mapper]
         stats[metric] = {
-            "above_parity": int((cell["aim"] > cell["ann"]).sum()),
+            "above_parity": int((cell["spatialaim"] > cell["ann"]).sum()),
             "cells": int(len(cell)),
             "above_chance_runs": int((pr[metric] > 0).sum()),
             "runs": int(len(pr)),
@@ -469,11 +486,6 @@ def main(mapper: str | None = MAPPER) -> None:
         # the top, so the drawing can set "observed"/"chance" just above it
         "sketch_tops": tops,
         "sketch_labels": ["observed", "chance"],
-        # where the plotting box sits inside a scatter image, as fractions of
-        # its width, so a heading can be centred on the box rather than on the
-        # image -- the image also carries the y-label's margin, and centring on
-        # it puts every heading visibly off to the right
-        "scatter_box": {"left": SCATTER_RECT[0], "width": SCATTER_RECT[2]},
     })
 
 

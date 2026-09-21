@@ -6,7 +6,7 @@
 #   2. Handed the perturbed annotation, what does the mapper return at k_004 --
 #      how much of the tissue goes to each phantom half, and does the division
 #      carry any spatial structure?
-#   3. What does AIM's level selection do with the same input, and does the level
+#   3. What does SpatialAIM's level selection do with the same input, and does the level
 #      it proposes reproduce the unperturbed mapping?
 #
 # One mapper per invocation (``--mapper``, default Tangram). Writes
@@ -14,7 +14,7 @@
 #   results.json   everything
 #   metrics.csv    the handful of numbers the text quotes
 #
-# Run from aim_env (see the section README) -- imports squidpy via aim.
+# Run from spatialaim_env (see the section README) -- imports squidpy via spatialaim.
 
 import argparse
 import json
@@ -27,11 +27,11 @@ import pandas as pd
 from scipy.stats import mannwhitneyu
 from sklearn.metrics import adjusted_rand_score
 
-from aim.analysis.topology import spatial_connectivities
-from aim.metrics.topology import local_spatial_purity, permutation_test
+from spatialaim.analysis.topology import spatial_connectivities
+from spatialaim.metrics.topology import local_spatial_purity, permutation_test
 
-from aim_experiments import paths
-from aim_experiments.style import MAPPERS
+from spatialaim_experiments import paths
+from spatialaim_experiments.style import MAPPERS
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +183,7 @@ def recovery(split: Run, original: Run) -> dict:
 
 def merge_heights() -> dict:
     """The agglomeration over the four annotated types, on shared-gene centroids."""
-    from aim.tree import build_agglomeration_tree
+    from spatialaim.tree import build_agglomeration_tree
 
     scaffold = ad.read_h5ad(ROOT / "split" / "reference_scaffold.h5ad", backed="r")
     names = [str(n) for n in scaffold.uns["start_cluster_names"]]
@@ -247,8 +247,8 @@ def main() -> None:
         (f"label agreement k_{K_BELOW:03d} vs unperturbed", f"{rec['label_agreement_below']:.4f}"),
         (f"ARI k_{K_BELOW:03d} vs unperturbed", f"{rec['ari_below']:.3f}"),
         (f"ARI k_{K_IDENTITY:03d} vs unperturbed", f"{rec['ari_identity']:.3f}"),
-        ("AIM proposal, unperturbed run", ", ".join(f"{k}={v}" for k, v in sel["original"]["best"].items())),
-        ("AIM proposal, perturbed run", ", ".join(f"{k}={v}" for k, v in sel["split"]["best"].items())),
+        ("SpatialAIM proposal, unperturbed run", ", ".join(f"{k}={v}" for k, v in sel["original"]["best"].items())),
+        ("SpatialAIM proposal, perturbed run", ", ".join(f"{k}={v}" for k, v in sel["split"]["best"].items())),
     ]
     (out / "results.json").write_text(json.dumps(results, indent=1, default=float), encoding="utf-8")
     pd.DataFrame(rows, columns=["metric", "value"]).to_csv(out / "metrics.csv", index=False)

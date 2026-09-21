@@ -8,7 +8,7 @@
 #     x agglomeration tree { ward, average }
 #     x spot->state mapper { nearest_centroid, wann, tangram, tacco, dot }
 #
-# One `aim run` (a full K sweep) per combination. Resumable: a combination whose
+# One `spatialaim run` (a full K sweep) per combination. Resumable: a combination whose
 # k_comparison.csv already exists is skipped, so the script can be killed and
 # restarted at any time.
 #
@@ -40,7 +40,7 @@
 #   DATA_ROOT      dataset root         (default /data/bionets/zi69hebi/Alignment/01_Datasets)
 #   OUT_ROOT       results root         (default <DATA_ROOT>/../02_Results/experiment1)
 #   PAIRS_CSV      pairs file           (default $DATA_ROOT/pairs_only_raw_counts.csv)
-#   AIM_ENV        conda env for AIM    (default aim_env)
+#   SPATIALAIM_ENV        conda env for SpatialAIM    (default spatialaim_env)
 #   MAPPINGS       mapper list; also the stage order
 #   TREES          "ward average"
 #   START_MODES    "leiden annotation"  (drop one to run only the other)
@@ -70,7 +70,7 @@ ST_DIR="$DATA_ROOT/ST"
 SC_INDEX="$SC_DIR/index.csv"
 ST_INDEX="$ST_DIR/index.csv"
 
-AIM_ENV="${AIM_ENV:-aim_env}"
+SPATIALAIM_ENV="${SPATIALAIM_ENV:-spatialaim_env}"
 WORKERS="${WORKERS:-1}"
 MAPPINGS="${MAPPINGS:-nearest_centroid wann tangram tacco dot}"
 TREES="${TREES:-ward average}"
@@ -102,7 +102,7 @@ command -v conda >/dev/null 2>&1 || die "conda is not on PATH"
 CONDA_BASE="$(conda info --base)" || die "conda info --base failed"
 # shellcheck disable=SC1091
 source "$CONDA_BASE/etc/profile.d/conda.sh"
-export CONDA_EXE="${CONDA_EXE:-$CONDA_BASE/bin/conda}"   # AIM needs to find conda
+export CONDA_EXE="${CONDA_EXE:-$CONDA_BASE/bin/conda}"   # SpatialAIM needs to find conda
 
 # --- keep every cache off $HOME ---------------------------------------------
 # The 2026-08-12 run lost 582 of 634 sweeps to this: the home directory went
@@ -130,8 +130,8 @@ done
 [[ -w "${HOME:-/nonexistent}" ]] || printf 'WARNING: %s is not writable - caches are redirected to %s, continuing\n' \
   "${HOME:-\$HOME}" "$CACHE_ROOT" >&2
 
-conda activate "$AIM_ENV" || die "cannot activate $AIM_ENV"
-command -v aim >/dev/null 2>&1 || die "'aim' not found in $AIM_ENV - run 01_setup_envs.sh"
+conda activate "$SPATIALAIM_ENV" || die "cannot activate $SPATIALAIM_ENV"
+command -v spatialaim >/dev/null 2>&1 || die "'spatialaim' not found in $SPATIALAIM_ENV - run 01_setup_envs.sh"
 
 [[ "$WORKERS" =~ ^[0-9]+$ ]] && (( WORKERS >= 1 )) || die "WORKERS must be a positive integer"
 
@@ -151,7 +151,7 @@ export NUMBA_NUM_THREADS="$OMP_NUM_THREADS"
 # explicit object dtype, so anndata's nullable-string guard no longer trips. This
 # keeps any *other* nullable-string write in an aligner env from aborting a sweep.
 # anndata reads it at import time; `conda run` passes the environment through, and
-# files written this way read back correctly in aim_env.
+# files written this way read back correctly in spatialaim_env.
 export ANNDATA_ALLOW_WRITE_NULLABLE_STRINGS="${ANNDATA_ALLOW_WRITE_NULLABLE_STRINGS:-1}"
 
 [[ -f "$PAIRS_CSV" ]] || die "pairs csv not found: $PAIRS_CSV"
@@ -433,9 +433,9 @@ run_sweep() {
 
   t0="$(date +%s)"
   if [[ -n "$JOB_TIMEOUT" ]]; then
-    timeout "$JOB_TIMEOUT" aim "${args[@]}" > "$job_log" 2>&1
+    timeout "$JOB_TIMEOUT" spatialaim "${args[@]}" > "$job_log" 2>&1
   else
-    aim "${args[@]}" > "$job_log" 2>&1
+    spatialaim "${args[@]}" > "$job_log" 2>&1
   fi
   rc=$?
   dt=$(( $(date +%s) - t0 ))
@@ -552,7 +552,7 @@ fi
 mkdir -p "$COUNTER_DIR"
 
 # Job control, so every worker becomes its own process group and Ctrl-C / SIGTERM
-# can take down the worker *and* the aim process it is currently running.
+# can take down the worker *and* the spatialaim process it is currently running.
 set -m
 declare -a WORKER_PIDS=()
 

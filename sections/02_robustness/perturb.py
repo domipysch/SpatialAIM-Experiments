@@ -15,7 +15,7 @@
 #       Everything here uses the coarse cellType annotation only.
 #
 # Usage:
-#   & ".../aim_env/python.exe" perturb.py
+#   & ".../spatialaim_env/python.exe" perturb.py
 
 import json
 import logging
@@ -26,7 +26,7 @@ import pandas as pd
 import scipy.sparse as sp
 from scipy.stats import rankdata
 
-from aim_experiments import paths
+from spatialaim_experiments import paths
 
 logger = logging.getLogger(__name__)
 

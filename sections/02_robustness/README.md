@@ -1,12 +1,12 @@
-# Section 02 — AIM is independent of the annotation's granularity (Fig. 2.2)
+# Section 02 — SpatialAIM is independent of the annotation's granularity (Fig. 2.2)
 
 Two experiments on **pair 0** (scRNA `01_mouse-ssp` × osmFISH `01_mouse-ssp`,
 4839 cells, 33 genes, all shared), both with average linkage:
 
 | | start clusters | what it asks |
 |---|---|---|
-| invisible split | the annotation, perturbed | an annotation **finer** than the panel can resolve — does AIM merge the phantom split back? |
-| granularity | the default Leiden over-clustering | an annotation **coarser** than the panel supports — what does AIM propose instead? |
+| invisible split | the annotation, perturbed | an annotation **finer** than the panel can resolve — does SpatialAIM merge the phantom split back? |
+| granularity | the default Leiden over-clustering | an annotation **coarser** than the panel supports — what does SpatialAIM propose instead? |
 
 The slice is never touched, so the correct behaviour is known in advance.
 

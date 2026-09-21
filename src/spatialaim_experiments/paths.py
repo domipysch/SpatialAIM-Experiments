@@ -4,13 +4,13 @@ Nothing else in this repository spells out an absolute path. Each location has a
 default that matches this workstation and an environment variable that overrides
 it, so the same scripts run on another machine without editing a line:
 
-    AIM_DATA             the datasets and results tree      (Data/)
-    AIM_VAULT            the Obsidian vault holding the Excalidraw drawings
-    AIM_PAPER            the Overleaf project               (AIM-Overleaf/)
-    AIM_EXPERIMENTS_OUT  where previews and caches are written (outputs/)
+    SPATIALAIM_DATA             the datasets and results tree      (Data/)
+    SPATIALAIM_VAULT            the Obsidian vault holding the Excalidraw drawings
+    SPATIALAIM_PAPER            the Overleaf project               (SpatialAIM-Overleaf/)
+    SPATIALAIM_EXPERIMENTS_OUT  where previews and caches are written (outputs/)
 
 The results this repository reads are produced by ``spatial-aim`` (the tool
-repository) and live under ``AIM_DATA``; nothing is ever written back there by a
+repository) and live under ``SPATIALAIM_DATA``; nothing is ever written back there by a
 figure script.
 """
 
@@ -19,9 +19,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# The repository root, found from this file: src/aim_experiments/paths.py. It is
+# The repository root, found from this file: src/spatialaim_experiments/paths.py. It is
 # correct for an editable install (the only one documented in the README) and is
-# overridden by AIM_EXPERIMENTS_OUT wherever that does not hold.
+# overridden by SPATIALAIM_EXPERIMENTS_OUT wherever that does not hold.
 REPO = Path(__file__).resolve().parents[2]
 WORKSPACE = Path(r"C:\Users\zi69hebi\Dev\10_Alignment")
 
@@ -34,7 +34,7 @@ def _env(name: str, default: Path) -> Path:
 # ---------------------------------------------------------------------------
 # inputs: the datasets and the results of the sweeps
 # ---------------------------------------------------------------------------
-DATA = _env("AIM_DATA", WORKSPACE / "Data")
+DATA = _env("SPATIALAIM_DATA", WORKSPACE / "Data")
 DATASETS = DATA / "01_Datasets"
 RESULTS = DATA / "02_Results"
 
@@ -51,11 +51,18 @@ ROBUSTNESS = RESULTS / "robustness"
 # ---------------------------------------------------------------------------
 # outputs: the drawings in the vault, the PDFs in the paper, previews here
 # ---------------------------------------------------------------------------
-VAULT = _env("AIM_VAULT", Path(r"C:\Users\zi69hebi\Dev\00_Obsidian"))
+VAULT = _env("SPATIALAIM_VAULT", Path(r"C:\Users\zi69hebi\Dev\00_Obsidian"))
 EXCALIDRAW = VAULT / "Excalidraw"
-PAPER = _env("AIM_PAPER", WORKSPACE / "AIM-Overleaf")
+# The Overleaf checkout was called AIM-Overleaf before the rename to SpatialAIM.
+# Either name works, so a machine that has not renamed its folder yet still
+# resolves; SPATIALAIM_PAPER overrides both.
+_PAPER_NAMES = ("SpatialAIM-Overleaf", "AIM-Overleaf")
+PAPER = _env("SPATIALAIM_PAPER",
+             next((WORKSPACE / name for name in _PAPER_NAMES
+                   if (WORKSPACE / name).exists()),
+                  WORKSPACE / _PAPER_NAMES[0]))
 PAPER_FIGURES = PAPER / "figures"
-OUTPUTS = _env("AIM_EXPERIMENTS_OUT", REPO / "outputs")
+OUTPUTS = _env("SPATIALAIM_EXPERIMENTS_OUT", REPO / "outputs")
 
 
 def outputs(section: str) -> Path:

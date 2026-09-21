@@ -4,7 +4,7 @@
 python supplement/build_dataset_tables.py
 ```
 
-Builds `AIM-Overleaf/supplement/supplementary_datasets.xlsx` — three sheets
+Builds `SpatialAIM-Overleaf/supplement/supplementary_datasets.xlsx` — three sheets
 (scRNA references, spatial slices, pairs) from the two dataset index CSVs,
 restricted to the 92 whole pairs the paper uses.
 

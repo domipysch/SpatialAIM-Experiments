@@ -122,16 +122,28 @@ class Drawing:
         return element
 
     def text(self, body: str, x: float, y: float, size: float = 40,
-             colour: str = INK, align: str = "left") -> dict:
+             colour: str = INK, align: str = "left",
+             box: float | None = None) -> dict:
         """``align`` says what ``x`` means: the left edge, the right edge, or the
-        centre of the text block."""
+        centre of the text block.
+
+        Without ``box`` the element is as wide as ``text_size`` estimates, and
+        that estimate is what gets aligned -- good enough for a single label, but
+        a column of them comes out ragged, because the estimate is off by a
+        different amount per word. ``box`` fixes the element's width instead and
+        lets Excalidraw align the glyphs inside it, which is flush. It has to be
+        at least as wide as the widest label, or that label wraps.
+        """
         w, h = text_size(body, size)
-        left = {"left": x, "right": x - w, "centre": x - w / 2}[align]
-        return self.element("text", left, y, w, h, strokeColor=colour,
+        width = w if box is None else box
+        left = {"left": x, "right": x - width, "centre": x - width / 2}[align]
+        inside = {"left": "left", "right": "right", "centre": "center"}[align]
+        return self.element("text", left, y, width, h, strokeColor=colour,
                             fontSize=size, fontFamily=self.font, text=body,
-                            originalText=body, rawText=body, textAlign="left",
+                            originalText=body, rawText=body,
+                            textAlign="left" if box is None else inside,
                             verticalAlign="top", containerId=None,
-                            autoResize=True, lineHeight=1.2)
+                            autoResize=box is None, lineHeight=1.2)
 
     def image(self, name: str, x: float, y: float, manifest: dict) -> dict:
         """A panel PNG, embedded by wikilink so re-exporting updates the

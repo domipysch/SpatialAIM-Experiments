@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from aim_experiments import paths
+from spatialaim_experiments import paths
 
 logger = logging.getLogger(__name__)
 

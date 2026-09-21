@@ -6,23 +6,23 @@
 # place. This script draws only what makes them readable -- panel letters,
 # headings and the legends. Anything else belongs in the caption.
 #
-# Two rows:
+# The key to the five mapper colours, and below it two rows:
 #
-#   a  AIM vs annotation, per spot | per gene | cell types used
+#   a  SpatialAIM vs annotation, per spot | per gene | cell types used
 #   b  the five mappers at the K each proposes
 #
 # The first row is one argument in three panels of identical geometry:
-# reconstruction barely moves either way, and AIM gets there with substantially
+# reconstruction barely moves either way, and SpatialAIM gets there with substantially
 # fewer cell types. The second asks which mapper does it best.
 #
 # Element construction, text measurement and the file format itself live in
-# aim_experiments.excalidraw; what is here is this figure's own layout.
+# spatialaim_experiments.excalidraw; what is here is this figure's own layout.
 
 import json
 import logging
 
-from aim_experiments import paths
-from aim_experiments.excalidraw import WIDTH, Drawing, advance, text_size
+from spatialaim_experiments import paths
+from spatialaim_experiments.excalidraw import WIDTH, Drawing, advance, text_size
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +37,14 @@ FS_LETTER = 50
 FS_HEAD = 40
 FS_LEG = 40
 FS_ROW = 30           # the per-row linkage labels, smaller than the mapper name
-ROW_LABEL_W = sum(advance(c) for c in "ward") * FS_ROW   # "ward", the longest of them, right-aligned
-LEG_PITCH = 48
-# The mapper swatch, in both rows: a rounded bar tall enough to span most of the
-# two rows one mapper occupies in row (a). Those rows are 76 units together, so
-# 48 covers them without reaching into the neighbouring mapper's pair, and it is
-# also exactly one line of FS_LEG, so it sits flush with its label in the key.
+# The width of the column those labels are right-aligned in: the widest of them,
+# "ward". text_size over-measures Helvetica slightly, so the box always holds the
+# label and never wraps it.
+ROW_LABEL_W = sum(advance(c) for c in "ward") * FS_ROW
+# The mapper swatch: a rounded vertical bar. In row (a) it is drawn at the height
+# of the two heat-map rows the mapper occupies, taken from the manifest, so the
+# five bars tile the column edge to edge with no gaps between them. In the key it
+# is one line of FS_LEG instead, which sits flush with its label.
 MARK_W, MARK_H = 16, 48
 LEG_INDENT = MARK_W + 18
 HEAD_DX = 44
@@ -52,12 +54,13 @@ LINE = FS_HEAD * 1.2
 ROW_TOP = 50
 ROW_GAP = 52          # panel bottom to the next row's letter line
 COL_GAP = 60
+LEG_GAP = 30          # key baseline to the letter line of row (a) below it
 
 # One heading per row. The three heat maps say what they measure on their own
 # colour bars, so the row only has to say what the comparison is.
 HEADINGS = {
-    "delta_spot": "Reconstruction and granularity, comparing AIM and given annotations",
-    "mappers": "Comparing different mappers within AIM",
+    "delta_spot": "Reconstruction and granularity, comparing SpatialAIM and given annotations",
+    "mappers": "Comparing different mappers within SpatialAIM",
 }
 
 drawing = Drawing("f23", PANELS, paths.VAULT)
@@ -68,19 +71,21 @@ def text(body: str, x, y, size=FS_LEG, **kw):
 
 
 def bar(cx, cy, w, h, colour):
-    """The mapper swatch of both rows: a rounded bar, centred on (cx, cy).
-    Taller than the dot it replaced, so in row (a) it reads as spanning the pair
-    of rows it names rather than pointing at the gap between them."""
+    """The mapper swatch: a rounded bar, centred on (cx, cy). In row (a) its
+    height is the pair of heat-map rows it names, so it brackets them rather than
+    pointing at the gap between them."""
     return drawing.bar(cx, cy, w, h, colour)
 
 
 def legend_row(x: float, y: float, entries, gap: float = 34) -> float:
-    """The same key laid out left to right. The two heat maps together leave no
-    column free beside them, so a stacked key has nowhere to go.
+    """The key, laid out left to right above the figure: it names the colours
+    both rows use, so it belongs ahead of them rather than under the last panel.
+    The heat maps leave no column free beside them, so a stacked key has nowhere
+    to go anyway.
 
-    Its swatches are the same rounded bars row (a) marks its mappers with, at the
-    same size, so the two are read as one another without a second look. A bar of
-    ``MARK_H`` is exactly one line high, so it sits flush with its label."""
+    Its swatches are the same rounded bars row (a) marks its mappers with, so the
+    two are read as one another without a second look -- shorter here, because a
+    bar of ``MARK_H`` is exactly one line high and sits flush with its label."""
     cursor = x
     for label, colour in entries:
         bar(cursor + MARK_W / 2, y + FS_LEG * 0.6, MARK_W, MARK_H, colour)
@@ -115,39 +120,46 @@ def build(manifest: dict) -> None:
     names_w = span - 3 * w_heat - 2 * gap    # the column of mapper names
     heat_x = PAD + names_w
 
+    # ---------------- the key ------------------------------------------------
+    # Which colour is which mapper, said once, at the top: both rows use the five
+    # colours, so the reader needs them before panel (a), not after panel (b).
+    legend_row(PAD, ROW_TOP, [(e["label"], e["colour"]) for e in legends["mappers"]])
+
     # ---------------- row 1: the corpus --------------------------------------
     # Three heat maps of identical geometry. Their columns are labelled inside
     # the images and their colour bars name their own units, so the row needs
     # one heading and nothing else. The mapper names are drawn once, here, to
     # the left of the row: inside the first image they would have made its cells
     # narrower than the other two's.
-    row1 = ROW_TOP + LETTER_DROP
+    row1 = ROW_TOP + FS_LEG * 1.2 + LEG_GAP + LETTER_DROP
     label("delta_spot", PAD, row1, "a")
     for i, name in enumerate(("delta_spot", "delta_gene", "delta_k")):
         drawing.image(name, heat_x + i * (w_heat + gap), row1, manifest)
 
     # Each mapper occupies two rows -- one per linkage -- so the column carries
-    # both: the linkage of every row against the heat map, and, centred on the
-    # pair, a dot in the mapper's colour. The dot rather than the name, because
-    # row (b)'s key already spells the five out and repeating them here cost more
-    # width than the heat maps could spare.
+    # both: the linkage of every row against the heat map, right-aligned on the
+    # image so the two words end on one edge, and, spanning the pair exactly, a
+    # bar in the mapper's colour. The bar rather than the name, because the key
+    # already spells the five out and repeating them here cost more width than
+    # the heat maps could spare.
     for tree, y in zip(manifest["trees"] * 5, manifest["heat_row_lines"]):
-        w, h = text_size(tree, FS_ROW)
-        text(tree, heat_x - 12 - w, row1 + y * h_heat - h / 2, size=FS_ROW)
+        h = text_size(tree, FS_ROW)[1]
+        text(tree, heat_x - 12, row1 + y * h_heat - h / 2, size=FS_ROW,
+             align="right", box=ROW_LABEL_W)
 
+    # The pair of rows one mapper owns, in canvas units: the heat map's rows are
+    # evenly spaced, so two of them are twice the spacing of the row centre lines.
+    lines = manifest["heat_row_lines"]
+    pair_h = 2 * (lines[1] - lines[0]) * h_heat
     mark_x = heat_x - 12 - ROW_LABEL_W - 16 - MARK_W / 2
     for entry, y in zip(legends["mappers"], manifest["heat_rows"]):
-        bar(mark_x, row1 + y * h_heat, MARK_W, MARK_H, entry["colour"])
+        bar(mark_x, row1 + y * h_heat, MARK_W, pair_h, entry["colour"])
 
     # ---------------- row 2: the mappers -------------------------------------
     row2 = row1 + h_heat + ROW_GAP + LETTER_DROP
     label("mappers", PAD, row2, "b")
     drawing.image("mappers", PAD, row2, manifest)
-
-    # the only key the figure needs: which colour is which mapper
-    y = row2 + h_map + 24
-    legend_row(PAD, y, [(e["label"], e["colour"]) for e in legends["mappers"]])
-    logger.info("canvas %.0f x %.0f units", WIDTH, y + LEG_PITCH + PAD)
+    logger.info("canvas %.0f x %.0f units", WIDTH, row2 + h_map + PAD)
 
 
 def main() -> None:

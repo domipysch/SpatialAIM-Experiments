@@ -47,7 +47,7 @@ C_GABA = "#0072B2"
 C_NONN = "#009E73"
 
 # The five spot-to-state mappers. All five hues are figure 2.1's; the two blues
-# go to AIM's own parameter-free mappers, so that family is legible before the
+# go to SpatialAIM's own parameter-free mappers, so that family is legible before the
 # legend is consulted.
 MAPPERS = ["nearest_centroid", "wann", "tangram", "tacco", "dot"]
 MAPPER_COLOURS = {
@@ -86,12 +86,12 @@ REFERENCE_LABELS = {
 }
 
 # Difference in how many cell types a mapping used, on its own hue pair so that
-# nobody reads it as a cosine: purple = AIM used fewer, green = more. Shared by
+# nobody reads it as a cosine: purple = SpatialAIM used fewer, green = more. Shared by
 # figures 2.3 and 2.4, which both carry that quantity.
 CMAP_DK = mpl.colors.LinearSegmentedColormap.from_list(
     "aim_dk", ["#3F007D", "#8C3CC8", "#C9A6E8", "#FFFFFF",
                "#A9DFCC", "#009E73", "#00543C"])
-# Clipped, because MTG runs to +69 (76 annotated types against AIM's 9) and would
+# Clipped, because MTG runs to +69 (76 annotated types against SpatialAIM's 9) and would
 # flatten every other cell to white.
 DK_LIMIT = 20
 

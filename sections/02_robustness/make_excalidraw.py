@@ -10,31 +10,37 @@
 # prints); every other mapper is assembled from figure_2_2_<mapper>/ into
 # figure_2_2_<mapper>.excalidraw.md.
 #
-# Three rows, four even columns, one arrow per column:
+# A band of keys, then three rows of four even columns, one arrow per column:
+#
+#   Induced type split  * ...      Criteria  - ...  - ...
+#   * ...  * ...                   - ...  - ...
 #
 #   a               b                c                 d
-#   | mapper        | mapper         | AIM w. mapper   | AIM w. mapper
+#   | mapper        | mapper         | SpatialAIM w. mapper   | SpatialAIM w. mapper
 #   v               v                v                 v
 #   e               f                g                 h
 #
-#   cell types      criteria         i                 cell states
+#   i ...           the composition panel     interpreted cell types
 #
-# The first row is what goes in -- the reference under each annotation, and the
-# criterion scores of each AIM run; the second is the slice it comes out as. What
-# each run was handed is in the panel headings, so the arrows only need to say
-# which mapper made the step. The last row is the legends and, between them, the
-# composition of the seven states in the fine annotation.
+# The two keys to the panels open the figure, side by side and two lines each --
+# stacked they were seven entries deep and needed a column of the last row to
+# themselves. The first row is what goes in -- the reference under each
+# annotation, and the criterion scores of each SpatialAIM run; the second is the
+# slice it comes out as. What each run was handed is in the panel headings, so
+# the arrows only need to say which mapper made the step. The last row is the
+# composition of the states in the fine annotation, named on its left and keyed
+# on its right.
 #
 # Element construction, text measurement and the file format itself live in
-# aim_experiments.excalidraw; what is here is this figure's own layout.
+# spatialaim_experiments.excalidraw; what is here is this figure's own layout.
 
 import argparse
 import json
 import logging
 
-from aim_experiments import paths
-from aim_experiments.excalidraw import WIDTH, Drawing, text_size, wrap
-from aim_experiments.style import GREY, INK, MAPPERS, SCALE
+from spatialaim_experiments import paths
+from spatialaim_experiments.excalidraw import WIDTH, Drawing, text_size, wrap
+from spatialaim_experiments.style import GREY, INK, MAPPERS, SCALE
 
 logger = logging.getLogger(__name__)
 
@@ -52,15 +58,19 @@ FS_LETTER = 50
 FS_LEG = 40
 LEG_PITCH = 48        # a row of legend is 48 tall
 LEG_INDENT = 54       # swatch to label
+LEG_GAP = 110         # one entry of a legend line to the next
+LEG_COL_GAP = 80      # the two keys of the top band to each other
+LEG_BAND_GAP = 46     # the band of keys at the top to the first row of letters
 SWATCH = 22
 LETTER_DROP = FS_LETTER * 1.2 + 6   # a letter sits this far above its panel
 
 FS_HEAD = 40          # the heading next to a panel letter
 HEAD_DX = 44          # letter to heading
-COL_W = 470           # four even columns: two aligner baselines, two AIM runs
-ROW1_TOP = 50
+COL_W = 470           # four even columns: two aligner baselines, two SpatialAIM runs
 ARROW_LEN = 88        # the arrows between the first two rows
-ROW3_GAP = 130        # second row's panels to the last row
+ROW3_GAP = 32         # second row's panels to the last row. Small, because
+                      # nothing stands over that row any more: its letter and
+                      # heading sit beside the panel, not above it.
 INSET = 16            # an arrow starts this far below the panel it leaves
 ARROW_CLEAR = 22      # and stops this far above the heading of the row below
 SCORE_DROP = 6        # the score panels hang a little below the row's line, as
@@ -70,19 +80,27 @@ LINE = FS_HEAD * 1.2  # one line of heading
 
 # What each panel says -- the wording is the figure's, so it lives here and not in
 # the caption. The second value is how far the heading is lifted off the letter
-# line; None, as they all are while every heading is a single line, puts its last
-# line on that line, next to the letter.
+# line; None, which they all are, centres it on the letter: a one-line heading
+# sits next to it, a two-line one straddles it half a line up. The letters of a
+# row are all on the letter line either way.
 HEADINGS = {
-    "umap_celltype": ("Coarse cell types", None),
-    "umap_split": ("Invisible split", None),
-    "scores_split": ("AIM on split" + chr(10) + "cell types", None),
-    "scores_overcluster": ("AIM without" + chr(10) + "start annotation", None),
+    "umap_celltype": ("Coarse annotation", None),
+    "umap_split": ("Induced split", None),
+    "scores_split": ("SpatialAIM on split" + chr(10) + "cell types", None),
+    "scores_overcluster": ("SpatialAIM without" + chr(10) + "start annotation", None),
     "map_celltype": ("Mapped cell types", None),
-    "map_split": ("Split halves mapped at random", None),
-    "map_split_aim": ("Split halves re-merged", None),
+    "map_split": ("Glut. A & B mapped at random", None),
+    "map_split_aim": ("Glut. A & B re-merged", None),
     "map_overcluster_aim": ("Finer cell types detected", None),
     "dots_states_fine": ("Found types correspond to finer cell types", None),
 }
+
+# The two keys to the panels above. They name a band across the top of the
+# figure now, not a column of the last row. The third belongs to (i) and stays
+# beside it, set the same way.
+HEAD_SPLIT = "Induced type split"
+HEAD_CRITERIA = "Criteria"
+HEAD_STATES = "interpreted cell types"
 
 # set by main(), once --mapper says which figure this is
 drawing = Drawing("f22", PANELS, paths.VAULT)
@@ -106,22 +124,50 @@ def arrow(points, **kw):
 
 
 
-def legend_width(entries) -> float:
-    return LEG_INDENT + max(text_size(entry[0], FS_LEG)[0] for entry in entries)
+def swatch(x: float, y: float, entry, kind: str) -> None:
+    """The mark in front of a legend label: a dot for a cell type, a rule in the
+    curve's own weight for a criterion."""
+    if kind == "dot":
+        dot(x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
+    else:
+        drawing.line(x, y + FS_LEG * 0.6, 44, entry[1],
+                     stroke=1.6 if entry[2] > 1 else 1)
 
 
-def legend(x: float, y: float, entries, kind="dot") -> float:
-    """Swatch-and-label rows; returns the y below the last row."""
+def entry_width(entry) -> float:
+    return LEG_INDENT + text_size(entry[0], FS_LEG)[0]
+
+
+def legend_natural(heading: str, entries) -> float:
+    """What a key would span if it were set on one line -- what its column's
+    share of the width is worked out from."""
+    return (text_size(heading, FS_LEG)[0] + LEG_GAP
+            + sum(entry_width(entry) for entry in entries)
+            + LEG_GAP * (len(entries) - 1))
+
+
+def legend_block(x: float, y: float, width: float, heading: str, entries,
+                 kind: str) -> float:
+    """One key as a column: the heading, then its entries flowed across
+    ``width`` and wrapped onto as many lines as they need. Returns the y below
+    it.
+
+    Stacked one entry per row, these two keys were seven rows deep and needed a
+    column of the last row to themselves. Flowed, each is two lines, which is
+    what lets them sit side by side above the figure. A wrapped line starts at
+    the column's own left edge rather than under the first entry: the headings
+    are wide, and indenting to them costs a line."""
+    text(heading, x, y, colour=GREY)
+    cursor = x + text_size(heading, FS_LEG)[0] + LEG_GAP
+    line = y
     for entry in entries:
-        label, colour = entry[0], entry[1]
-        if kind == "dot":
-            dot(x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, colour)
-        else:
-            drawing.line(x, y + FS_LEG * 0.6, 44, colour,
-                         stroke=1.6 if entry[2] > 1 else 1)
-        text(label, x + LEG_INDENT, y)
-        y += LEG_PITCH
-    return y
+        w = entry_width(entry)
+        if cursor > x and cursor + w > x + width:
+            line, cursor = line + LEG_PITCH, x
+        swatch(cursor, line, entry, kind)
+        text(entry[0], cursor + LEG_INDENT, line)
+        cursor += w + LEG_GAP
+    return line + LEG_PITCH
 
 
 # --------------------------------------------------------------------------
@@ -143,7 +189,7 @@ def build(manifest: dict) -> None:
         return panels[name]["w"], panels[name]["h"]
 
     # even columns: the gaps are what is left over, and the two that carry an
-    # AIM arrow have to hold its label as well
+    # SpatialAIM arrow have to hold its label as well
     gap = (WIDTH - 2 * PAD - 4 * COL_W) / 3
     left = [PAD + i * (COL_W + gap) for i in range(4)]
     middle = [x + COL_W / 2 for x in left]
@@ -153,7 +199,7 @@ def build(manifest: dict) -> None:
         heading, rise = HEADINGS[name]
         heading = wrap(heading, room - HEAD_DX, FS_HEAD)
         if rise is None:
-            rise = heading.count(chr(10)) * LINE
+            rise = heading.count(chr(10)) * LINE / 2
         w, _ = size(name)
         x = middle[column] - w / 2
         element = image(name, x, top + drop, manifest)
@@ -161,20 +207,40 @@ def build(manifest: dict) -> None:
         text(heading, x + HEAD_DX, top - LETTER_DROP + 9 - rise, size=FS_HEAD)
         return element
 
+    # A heading reaches this far above its letter line -- half a line per extra
+    # line of it, since the heading is centred on the letter. It is what the space
+    # over a row has to hold, and where an arrow into that row has to stop.
+    def heading_lift(name: str) -> float:
+        return wrap(HEADINGS[name][0], COL_W - HEAD_DX,
+                    FS_HEAD).count(chr(10)) * LINE / 2
+
+    # ---------------- the two keys, as a band across the top ----------------
+    # They used to stand in the last row, seven stacked entries deep. Side by
+    # side, each flowed over two lines, they cost a quarter of that height and
+    # can sit above the figure, where they are read before the panels rather
+    # than after them. Each column gets the share of the width it would need on
+    # one line, so the two wrap equally hard.
+    keys = [(HEAD_SPLIT, legends["annotation"], "dot"),
+            (HEAD_CRITERIA, legends["criteria"], "line")]
+    want = [legend_natural(heading, entries) for heading, entries, _ in keys]
+    room = WIDTH - 2 * PAD - LEG_COL_GAP * (len(keys) - 1)
+    band, cursor = PAD, PAD
+    for (heading, entries, kind), share in zip(keys, want):
+        width = room * share / sum(want)
+        band = max(band, legend_block(cursor, PAD, width, heading, entries, kind))
+        cursor += width + LEG_COL_GAP
+
     # The score panels are a fraction of a unit taller than the UMAPs, so the row
     # ends where the deepest of its panels does and every arrow starts there. Each
     # row is preceded by the same free space plus its band of letters, so the two
     # gaps down the figure are equal.
-    row1_top = ROW1_TOP
+    row1_names = ("umap_celltype", "umap_split", "scores_split",
+                  "scores_overcluster")
+    row1_top = (band + LEG_BAND_GAP + LETTER_DROP - 9
+                + max(heading_lift(name) for name in row1_names))
     row1_bottom = row1_top + max(size("umap_celltype")[1], size("umap_split")[1],
                                  size("scores_split")[1] + SCORE_DROP,
                                  size("scores_overcluster")[1] + SCORE_DROP)
-    # An arrow stops above the *heading* of the panel it points at, not above its
-    # letter, so the gap between the rows has to hold the arrow, its two
-    # clearances and however many lines those headings run to.
-    def heading_lift(name: str) -> float:
-        return wrap(HEADINGS[name][0], COL_W - HEAD_DX,
-                    FS_HEAD).count(chr(10)) * LINE
 
     row2_names = ("map_celltype", "map_split", "map_split_aim",
                   "map_overcluster_aim")
@@ -185,7 +251,7 @@ def build(manifest: dict) -> None:
 
     # The letters run row by row, a-b-c-d over e-f-g-h: what goes in, then what
     # comes out of it.
-    # ---------------- first row: the reference, and what AIM scores ----------
+    # ---------------- first row: the reference, and what SpatialAIM scores ----------
     place("umap_celltype", 0, row1_top, "a")
     place("umap_split", 1, row1_top, "b")
     place("scores_split", 2, row1_top, "c", drop=SCORE_DROP)
@@ -207,57 +273,48 @@ def build(manifest: dict) -> None:
         # together are centred in the column -- so the arrow itself is off centre
         # by half the label
         name = manifest.get("mapper_name", "Tangram")
-        # a long mapper name ("AIM with nearest centroid") is wider than the
-        # column, so it breaks over two lines rather than into its neighbour
-        label = wrap(name if column < 2 else f"AIM with {name}", COL_W - 60, FS_LEG)
+        # "SpatialAIM with Tangram" is wider than its column but the columns are
+        # not touching, so it is allowed to reach into the gap and stay on one
+        # line, as set by hand in the drawing. A long mapper name ("SpatialAIM
+        # with nearest centroid") is wider than even that and still breaks over
+        # two lines rather than running into the neighbouring panel.
+        room = (COL_W if column < 2 else COL_W + gap) - 60
+        label = wrap(name if column < 2 else f"SpatialAIM with {name}", room, FS_LEG)
         x = middle[column] + (text_size(label, FS_LEG)[0] + 12) / 2
         end = (row2_top - LETTER_DROP + 9 - heading_lift(row2_names[column])
                - ARROW_CLEAR)
         arrow([(x, start), (x, end)])
         text(label, x - 12, start + 10, right=True)
 
-    # ---------------- last row: the legends and the composition panel -------
-    annotation = legends["annotation"]
-    criteria = legends["criteria"]
+    # ---------------- last row: the composition panel and its key -----------
+    # Three blocks across the row, as placed by hand: the panel's letter and
+    # heading in the first column, the panel itself in the middle, its key where
+    # the last column of the rows above begins -- so the row is read against the
+    # same grid even though it is not built from it.
     states = [(f"{s['n']}  {s['name']}", s["colour"]) for s in legends["states"]]
-    # at this text size four blocks no longer fit across the row, so the two keys
-    # to the panels above are stacked into one
-    blocks = [max(legend_width(annotation), legend_width(criteria)),
-              size("dots_states_fine")[0], legend_width(states)]
-    gap = (WIDTH - 2 * PAD - sum(blocks)) / (len(blocks) - 1)
-    x, cursor = [], PAD
-    for block in blocks:
-        x.append(cursor)
-        cursor += block + gap
+    head = HEADINGS["dots_states_fine"][0]
+    key_x = left[3]
+    head_right = PAD + HEAD_DX + text_size(head, FS_HEAD)[0]
+    dots = image("dots_states_fine",
+                 head_right + (key_x - head_right - size("dots_states_fine")[0]) / 2,
+                 row3_top, manifest)
 
+    # The state key is not a stack of rows but a key to the panel: each entry
+    # sits at the height of the row it names, and its heading -- one line, which
+    # this column has room for -- stands over the first of them.
     row3_h = size("dots_states_fine")[1]
-
-    heading_y = row3_top - LETTER_DROP + 9
-    y = heading_y
-    for entries, heading, kind in [(annotation, "cell types", "dot"),
-                                   (criteria, "criteria", "line")]:
-        text(heading, x[0], y, colour=GREY)
-        y = legend(x[0], y + LINE, entries, kind=kind) + LINE / 2
-
-    dots = image("dots_states_fine", x[1], row3_top, manifest)
-    text("i", x[1], row3_top - LETTER_DROP, size=FS_LETTER)
-    text(HEADINGS["dots_states_fine"][0], x[1] + HEAD_DX,
-         row3_top - LETTER_DROP + 9, size=FS_HEAD)
-
-    # The state legend is not a stack of rows but a key to the panel: each entry
-    # sits at the height of the row it names. Its heading is wider than the block,
-    # so it does not share the heading line of the row -- it sits directly over
-    # its own first entry, where it was placed by hand.
     first = row3_top + legends["states"][0]["y"] * row3_h - FS_LEG * 0.6
-    # at this text size the heading no longer fits the block on one line, and it
-    # would run into the panel's own bracket labels if it started further left
-    heading = wrap("interpreted cell types", blocks[2], FS_LEG)
-    text(heading, x[2],
-         first - text_size(heading, FS_LEG)[1] - LINE / 2, colour=GREY)
+    heading_y = first - text_size(HEAD_STATES, FS_LEG)[1] - LINE / 2
+    text(HEAD_STATES, key_x, heading_y, colour=GREY)
     for entry, state in zip(states, legends["states"]):
         y = row3_top + state["y"] * row3_h - FS_LEG * 0.6
-        dot(x[2] + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
-        text(entry[0], x[2] + LEG_INDENT, y)
+        dot(key_x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
+        text(entry[0], key_x + LEG_INDENT, y)
+
+    # (i) is named beside its panel rather than over it, on the line its key
+    # opens on.
+    text("i", PAD, heading_y, size=FS_LETTER)
+    text(head, PAD + HEAD_DX, heading_y + 9, size=FS_HEAD)
     logger.info("canvas %.0f x %.0f units", WIDTH, dots["y"] + dots["height"] + PAD)
 
 

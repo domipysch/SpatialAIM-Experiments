@@ -1,7 +1,7 @@
 # Experiment 1 on the server — install + run everything
 
 The prerequisite sweep for the whole paper: every pair × start mode × linkage ×
-mapper, one `aim run` each, ~2630 run roots. Sections 03 and 04 read nothing but
+mapper, one `spatialaim run` each, ~2630 run roots. Sections 03 and 04 read nothing but
 the metrics it collects; section 02 has its own small runs instead.
 
 These scripts are self-contained — they install `spatial-aim` from TestPyPI on
@@ -12,7 +12,7 @@ Two scripts, no repository needed on the server:
 
 | File | What it does |
 |------|--------------|
-| `01_setup_envs.sh` | creates all four envs — `aim_env` (with `spatial-aim` from **TestPyPI**) plus `tangram_env`, `tacco_env`, `dot_env` from the env specs shipped inside the wheel — then verifies each aligner env can run its wrapper |
+| `01_setup_envs.sh` | creates all four envs — `spatialaim_env` (with `spatial-aim` from **TestPyPI**) plus `tangram_env`, `tacco_env`, `dot_env` from the env specs shipped inside the wheel — then verifies each aligner env can run its wrapper |
 | `02_run_experiment1.sh` | enumerates the whole grid and runs it across `WORKERS` shell workers; resumable, logged |
 | `04_write_k_selection.py` | recomputes the missing `k_selection.json` per run root from `k_comparison.csv` alone, and reports truncated tables |
 | `05_collect_metrics.sh` | tars the three small files per run root (~50 MB) for transfer back |
@@ -21,8 +21,8 @@ Two scripts, no repository needed on the server:
 > copied back from the server and is not in this repository.
 
 Once the archives are extracted into `Data/02_Results/experiment1`, everything
-downstream goes through `aim_experiments.exp1`, which reduces each run root to
-two rows (AIM's proposal, the annotation baseline) and caches the table in
+downstream goes through `spatialaim_experiments.exp1`, which reduces each run root to
+two rows (SpatialAIM's proposal, the annotation baseline) and caches the table in
 `outputs/experiment1/runs.csv`.
 
 ## 0. Copy them over
@@ -41,14 +41,14 @@ bash /data/bionets/zi69hebi/Alignment/aim_experiment1/01_setup_envs.sh
   directory, so the finished `nearest_centroid` / `wann` sweeps stay where they are. An env that
   already exists is reused as-is — `conda env remove -n <env>` yourself to force a rebuild, or use
   `ONLY=tangram_env` to build a single env.
-* `aim_env`: dependencies come from real PyPI, then `spatial-aim` from TestPyPI with `--no-deps`, so a
+* `spatialaim_env`: dependencies come from real PyPI, then `spatial-aim` from TestPyPI with `--no-deps`, so a
   TestPyPI mirror of a dependency can never be picked up by accident. Pin with
-  `AIM_VERSION=0.1.4 bash 01_setup_envs.sh`.
-* The aligner envs get **only their own aligner** — no `spatial-aim`. AIM runs their wrapper scripts
+  `SPATIALAIM_VERSION=0.1.4 bash 01_setup_envs.sh`.
+* The aligner envs get **only their own aligner** — no `spatial-aim`. SpatialAIM runs their wrapper scripts
   by path (`conda run -n tangram_env python …/run_tangram.py …`), and those wrappers import nothing
-  from `aim`. `dot_env` additionally gets the DOT R package from GitHub (`SKIP_DOT_R=1` to skip).
-* pandas is pinned `<3` in `aim_env`: with pandas' new string default, AIM's own h5ad writes
-  (`src/aim/io.py`) would hit anndata's nullable-string guard the way the aligner wrappers did. The
+  from `spatialaim`. `dot_env` additionally gets the DOT R package from GitHub (`SKIP_DOT_R=1` to skip).
+* pandas is pinned `<3` in `spatialaim_env`: with pandas' new string default, SpatialAIM's own h5ad writes
+  (`src/spatialaim/io.py`) would hit anndata's nullable-string guard the way the aligner wrappers did. The
   wrappers are fixed; `io.py` is not yet.
 * The last step prints `available: [...]` — all of `tangram`, `tacco`, `dot` must be listed — and then
   checks that each aligner env can actually execute its wrapper script. If conda is not on `PATH`
@@ -76,14 +76,14 @@ Console lines are prefixed `[w<worker> <stage> g<group>/<total>]`. Progress:
 tail -f /data/bionets/zi69hebi/Alignment/02_Results/experiment1/_logs/ledger.csv
 ```
 
-Stop it: `Ctrl-C` in the session (the script terminates its workers and the `aim` process each one is
+Stop it: `Ctrl-C` in the session (the script terminates its workers and the `spatialaim` process each one is
 running, then tells you to re-run to resume). If the parent gets killed hard instead, workers survive
-as orphans — `pkill -f 'aim run --scdata'` clears them. Either way nothing is corrupted: re-running
+as orphans — `pkill -f 'spatialaim run --scdata'` clears them. Either way nothing is corrupted: re-running
 skips every sweep that already has a `k_comparison.csv`.
 
 ### How the work is split
 
-All parallelism is in the shell script; AIM itself runs exactly as it does single-threaded. The split
+All parallelism is in the shell script; SpatialAIM itself runs exactly as it does single-threaded. The split
 is decided **before anything starts** and never revisited — there is no claiming, locking or other
 coordination while the run is going.
 
@@ -130,7 +130,7 @@ SHARD_COUNT=3 SHARD_INDEX=0 WORKERS=8 bash 02_run_experiment1.sh   # on host 1, 
 
 **321 × 2 × 5 = 3210 sweeps**, each a full K sweep (K = number of start clusters down to 1).
 
-Batch mode (`aim run --pairs_csv`) is deliberately not used: `--start_from_annotation` differs per
+Batch mode (`spatialaim run --pairs_csv`) is deliberately not used: `--start_from_annotation` differs per
 scRNA reference, and every start mode / tree combination needs its own output root.
 
 ## Output layout
@@ -148,7 +148,7 @@ scRNA reference, and every start mode / tree combination needs its own output ro
 ```
 
 A run root is named after the mapper alone, so the start mode and the tree method have to be
-directory levels above it — that is exactly what `<start_tag>/…/<tree>/` provides. Point `aim gui`
+directory levels above it — that is exactly what `<start_tag>/…/<tree>/` provides. Point `spatialaim gui`
 at any `…/<tree>/` folder and it sees all five mappers side by side.
 
 ## Knobs
@@ -170,7 +170,7 @@ at any `…/<tree>/` folder and it sees all five mappers side by side.
 | `LINK_SCAFFOLD` | `1` | hardlink the ward scaffold cache into the average cell |
 | `DRY_RUN` | `0` | enumerate + check annotations only |
 | `CACHE_ROOT` / `CONFIG_ROOT` | `<DATA_ROOT>/../.cache` / `.config` | matplotlib/numba/XDG caches, kept off `$HOME` |
-| `OUT_ROOT`, `DATA_ROOT`, `PAIRS_CSV`, `AIM_ENV` | server defaults | |
+| `OUT_ROOT`, `DATA_ROOT`, `PAIRS_CSV`, `SPATIALAIM_ENV` | server defaults | |
 
 ## Fixed since the first run
 
@@ -191,8 +191,8 @@ those is unwritable, rather than burning through the grid at ~50 s per failed sw
 exports `ANNDATA_ALLOW_WRITE_NULLABLE_STRINGS=1` as a net for any other write in those envs.
 
 **No `spatial-aim` in the aligner envs.** The wrappers were launched as `python -m
-aim.reference_aligners.run_tangram`, which required the package inside `tangram_env`. They are now
-standalone scripts executed by path, importing nothing from `aim`, so the aligner envs hold only
+spatialaim.reference_aligners.run_tangram`, which required the package inside `tangram_env`. They are now
+standalone scripts executed by path, importing nothing from `spatialaim`, so the aligner envs hold only
 their own aligner. The persistent per-sweep worker (`--server` mode, `AlignerWorker`) is gone with
 it: each K is one `conda run`.
 

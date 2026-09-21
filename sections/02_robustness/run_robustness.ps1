@@ -27,8 +27,8 @@ param(
 
 $ErrorActionPreference = "Continue"
 
-$E = "C:\Users\zi69hebi\AppData\Local\miniforge3\envs\aim_env"
-# Activating the env by PATH is required: calling envs\aim_env\python.exe without
+$E = "C:\Users\zi69hebi\AppData\Local\miniforge3\envs\spatialaim_env"
+# Activating the env by PATH is required: calling envs\spatialaim_env\python.exe without
 # it loads the wrong native DLLs and the sweep dies with 0xC0000409.
 $env:PATH = "$E;$E\Library\mingw-w64\bin;$E\Library\usr\bin;$E\Library\bin;$E\Scripts;$E\bin;" +
             "C:\Users\zi69hebi\AppData\Local\miniforge3\condabin;C:\Users\zi69hebi\AppData\Local\miniforge3\Scripts;$env:PATH"
@@ -69,7 +69,7 @@ foreach ($r in $runs) {
 
   Write-Host "run    $($r.name) [$Mapper] $($extra -join ' ') ..."
   $t0 = Get-Date
-  & "$E\python.exe" -m aim run `
+  & "$E\python.exe" -m spatialaim run `
       --scdata $r.sc --stdata $ST --output_dir $outDir `
       --mapping $Mapper --linkage_method $LINKAGE @extra `
       *> "$LOGS\${tag}_$Mapper.log"

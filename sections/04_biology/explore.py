@@ -1,4 +1,4 @@
-"""Results 2.4 -- biological and topological plausibility of AIM's cell states.
+"""Results 2.4 -- biological and topological plausibility of SpatialAIM's cell states.
 
 Numbers only; the figure lives in ``panels.py``. Reuses the Results 2.3 table
 (``reconstruction/load.py``), which now carries all four non-reconstruction
@@ -6,13 +6,13 @@ metrics per run root.
 
 The comparison this section makes, fixed by the section plan:
 
-    AIM        Leiden over-clustering, **average** linkage, K = best.overall
+    SpatialAIM        Leiden over-clustering, **average** linkage, K = best.overall
     annotation the author's annotation mapped as it stands (K = T), and where a
                reference carries two annotations, **the one whose identity cut
                scores highest overall** -- the same harmonic mean across the
-               three criteria by which AIM picks its own K. Choosing it on the
+               three criteria by which SpatialAIM picks its own K. Choosing it on the
                measure a given panel plots would hand the baseline a per-panel
-               advantage AIM is never given.
+               advantage SpatialAIM is never given.
     random     0 for all four metrics, by construction: the two spatial metrics
                are z-scores against a spot-label shuffle, and modularity is
                defined as the excess over a degree-preserving random partition.
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from aim_experiments import exp1 as L
+from spatialaim_experiments import exp1 as L
 
 METRICS = {
     "nhood_mean_self_zscore": "neighbourhood enrichment z",
@@ -39,12 +39,12 @@ TREE = "average"
 
 
 def frames(df: pd.DataFrame, metric: str) -> pd.DataFrame:
-    """One row per (pair, mapper): AIM against its annotation baseline."""
-    aim = df[(df["role"] == "aim") & (df["tree"] == TREE)]
+    """One row per (pair, mapper): SpatialAIM against its annotation baseline."""
+    spatialaim = df[(df["role"] == "spatialaim") & (df["tree"] == TREE)]
     base = df[(df["role"] == "baseline") & (df["tree"] == TREE)]
     join = ["pair_dir", "mapper"]
     base = base.loc[base.groupby(join)["score_overall"].idxmax()]
-    out = aim.merge(
+    out = spatialaim.merge(
         base[join + [metric, "k", "ann_key"]],
         on=join, suffixes=("", "_base"), validate="one_to_one",
     )
@@ -74,11 +74,11 @@ def main() -> None:
           f"{df['reference'].nunique()} references\n")
     check_tree_independence(df)
 
-    aim = df[(df["role"] == "aim") & (df["tree"] == TREE)]
-    print(f"\nAIM side: {len(aim)} runs "
-          f"({aim['pair_dir'].nunique()} pairs x {aim['mapper'].nunique()} mappers)")
-    print("AIM K, per reference:")
-    print(aim.groupby("reference")["k"].agg(["min", "median", "max"]).to_string())
+    spatialaim = df[(df["role"] == "spatialaim") & (df["tree"] == TREE)]
+    print(f"\nAIM side: {len(spatialaim)} runs "
+          f"({spatialaim['pair_dir'].nunique()} pairs x {spatialaim['mapper'].nunique()} mappers)")
+    print("SpatialAIM K, per reference:")
+    print(spatialaim.groupby("reference")["k"].agg(["min", "median", "max"]).to_string())
 
     for metric, label in METRICS.items():
         pr = frames(df, metric)
@@ -87,18 +87,18 @@ def main() -> None:
 
         # --- vs random -------------------------------------------------------
         print("\n  vs random (chance = 0)")
-        print(f"    AIM         mean {pr[metric].mean():9.4f}   "
+        print(f"    SpatialAIM         mean {pr[metric].mean():9.4f}   "
               f"above 0: {(pr[metric] > 0).mean():6.1%}")
         print(f"    annotation  mean {pr[metric + '_base'].mean():9.4f}   "
               f"above 0: {(pr[metric + '_base'] > 0).mean():6.1%}")
 
         # --- vs the annotation ----------------------------------------------
         per_ref = pr.groupby("reference").agg(
-            aim=(metric, "mean"), ann=(f"{metric}_base", "mean"),
+            spatialaim=(metric, "mean"), ann=(f"{metric}_base", "mean"),
             delta=("delta", "mean"), n=("delta", "size"),
             k=("k", "mean"), t=("k_base", "mean"),
         )
-        print("\n  vs annotation (AIM - annotation), per reference")
+        print("\n  vs annotation (SpatialAIM - annotation), per reference")
         print(per_ref.round(4).to_string())
         print(f"    mean over references {per_ref['delta'].mean():+.4f}   "
               f"references positive {int((per_ref['delta'] > 0).sum())}/{len(per_ref)}   "
@@ -106,7 +106,7 @@ def main() -> None:
 
         print("\n  per mapper (mean over references, so retina cannot dominate)")
         by = (pr.groupby(["reference", "mapper"])
-                .agg(aim=(metric, "mean"), ann=(f"{metric}_base", "mean"),
+                .agg(spatialaim=(metric, "mean"), ann=(f"{metric}_base", "mean"),
                      delta=("delta", "mean"))
                 .groupby("mapper").mean())
         print(by.round(4).to_string())

@@ -1,5 +1,5 @@
 # Panels of the Results 2.2 figure, each as its own image, for assembly in
-# Excalidraw (C:\Users\zi69hebi\Dev\00_Obsidian\Excalidraw\figure_2_2.excalidraw.md).
+# Excalidraw (the vault's Excalidraw/figure_2_2.excalidraw.md).
 #
 # One mapper per invocation (``--mapper``, default Tangram, which is the figure
 # the paper prints). Every other mapper writes its panels to
@@ -15,9 +15,9 @@
 #                umap_split           the same embedding, the split annotation
 #                map_celltype         the slice, Tangram on the three annotated types
 #                map_split            the slice, Tangram on the split annotation
-#                map_split_aim        the slice, AIM at the K it proposes
+#                map_split_aim        the slice, SpatialAIM at the K it proposes
 #                scores_split         criterion scores over K
-#   too coarse   map_overcluster_aim  the slice, AIM from over-clustering at its K
+#   too coarse   map_overcluster_aim  the slice, SpatialAIM from over-clustering at its K
 #                scores_overcluster   criterion scores over K
 #                dots_states_fine     each state's composition in the fine annotation
 #
@@ -30,7 +30,7 @@
 # paper; panels.json records what was written, so make_excalidraw.py can place
 # each image at its true size.
 #
-# Run from aim_env (see the section README).
+# Run from spatialaim_env (see the section README).
 
 import argparse
 import json
@@ -45,8 +45,8 @@ from matplotlib.colors import LinearSegmentedColormap, to_hex
 import plot_granularity as gran               # sibling scripts: the data access
 import plot_invisible_split as split          # and palette of each half
 
-from aim_experiments import paths
-from aim_experiments.style import PanelWriter
+from spatialaim_experiments import paths
+from spatialaim_experiments.style import PanelWriter
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,11 @@ COL_W = 470 / 300
 UMAP_W = COL_W        # the embedding is wider than tall, so the panel is too
 MAP_W = COL_W
 SCORES_SIZE = (COL_W, 337 / 300)
+# The plotting box inside that image. The left and bottom margins hold the tick
+# labels plus an axis title -- two lines of it on the left -- and the image size
+# stays fixed, so the box gives up what the titles take: the score panels have to
+# stay as tall as the UMAPs beside them for the first row to be flush.
+SCORES_RECT = [0.34, 0.30, 0.64, 0.665]
 # The last row, next to the legends. Its size follows the data rather than being
 # typed: with only the excitatory states left, both the rows and the columns that
 # carry them shrink, and a fixed frame would have spread three rows over the
@@ -90,13 +95,13 @@ CRITERION_LABELS = {"recon": "reconstruction", "spatial": "spatial",
                     "coherence": "coherence", "overall": "overall"}
 COARSE_LEGEND = [("Glutamatergic", split.C_GLUT), ("GABAergic", split.C_GABA),
                  ("Non-Neuronal", split.C_NONN)]
-SPLIT_LEGEND = [("Glutamatergic A", split.C_GLUT_A), ("Glutamatergic B", split.C_GLUT_B)]
+SPLIT_LEGEND = [("Glut. A (Unedited)", split.C_GLUT_A), ("Glut. B (+ marker panel)", split.C_GLUT_B)]
 
 # The whole argument of this figure is about one annotated cell type -- the one
 # that gets split, and the one an over-clustering resolves further. GABAergic and
 # Non-Neuronal cells carry no part of it, so in every panel that draws cells they
 # are greyed out rather than coloured: (a), (b), (e), (f), (g) by label, and (h)
-# by the family of each AIM state's dominant fine type. The composition panel (i)
+# by the family of each SpatialAIM state's dominant fine type. The composition panel (i)
 # keeps all three families in colour -- it is the one place the other two are the
 # point.
 GREYED_TYPES = {"GABAergic", "Non-Neuronal"}
@@ -125,6 +130,7 @@ def state_ramp(n: int) -> list[str]:
 def focus_colour(label: str) -> str:
     """``split.colour_of``, with the two families this figure is not about grey."""
     return split.C_GREY if label in GREYED_TYPES else split.colour_of(label)
+
 
 def save(fig, name: str) -> None:
     panels.save(fig, name)
@@ -183,7 +189,7 @@ def map_panel(name: str, xy, colours) -> None:
 
 def scores_panel(name: str, scores: pd.DataFrame, k_best: int, dense: bool) -> None:
     fig = plt.figure(figsize=SCORES_SIZE)
-    ax = fig.add_axes([0.30, 0.235, 0.68, 0.735])
+    ax = fig.add_axes(SCORES_RECT)
     half = 0.8 if dense else 0.3
     ax.axvspan(k_best - half, k_best + half, color="0.85", alpha=0.6, lw=0)
     ax.text(k_best, 1.03, f"$K$={k_best}", fontsize=FS_TICK, color="0.25",
@@ -204,6 +210,12 @@ def scores_panel(name: str, scores: pd.DataFrame, k_best: int, dense: bool) -> N
         ax.set_xticks(sorted(scores["k"].astype(int)))
     ax.set_yticks([0.0, 0.5, 1.0])
     ax.set_ylim(0, 1.25)
+    ax.set_xlabel("$K$", fontsize=FS_TICK, labelpad=1.5)
+    # Set on two lines because it is set rotated: "mapping scores" on one line is
+    # 1.03 in at this size and the plotting box is 0.75 in tall, so a single line
+    # would run out of both ends of the image.
+    ax.set_ylabel("mapping\nscores", fontsize=FS_TICK, labelpad=1.5,
+                  linespacing=1.05)
     save(fig, name)
 
 
@@ -346,7 +358,10 @@ def main() -> None:
         "k_split": k_split,
         "k_overcluster": k_best,
         "legends": {
-            "annotation": COARSE_LEGEND[:1] + SPLIT_LEGEND + COARSE_LEGEND[1:],
+            # Only the cell type this figure is about. GABAergic and
+            # Non-Neuronal are grey in every panel that draws cells and carry no
+            # column of (i), so their two hues appear nowhere in the figure.
+            "annotation": COARSE_LEGEND[:1] + SPLIT_LEGEND,
             "criteria": [[CRITERION_LABELS[key], colour, lw]
                          for key, _label, colour, lw in gran.CRITERIA],
             "states": [{"n": i + 1, "colour": states.loc[s, "colour"],
