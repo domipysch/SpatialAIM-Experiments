@@ -1,8 +1,6 @@
 # Section 04 — Biological and topological plausibility (Fig. 2.4)
 
-Same corpus and same comparison as section 03 — `experiment1/` through
-`spatialaim_experiments.exp1`, SpatialAIM against the annotation baseline with the same mapper
-on both sides — but on the other two criteria:
+All data comes from `experiment1/`, reduced to one tidy table by `spatialaim_experiments.exp1`.
 
 | Row | Criterion | Measures |
 |---|---|---|
@@ -11,45 +9,13 @@ on both sides — but on the other two criteria:
 
 Chance is 0 for all four by construction: the spatial pair are z-scores against a
 spot-label shuffle, and modularity is the excess over a degree-preserving random
-partition. Every run is above it, which the caption states.
-
-Each row opens with a **sketch** of what its criterion means, drawn on a toy
-graph with the same labels twice — observed above, permuted below. That is
-exactly the null the numbers are measured against, so the sketch defines the
-criterion and shows its chance level in one picture.
+partition. 
 
 ## Running it
 
+One plot per figure via `--mapper`.
+
 ```bash
-python sections/04_biology/explore.py                # the numbers, printed
-python sections/04_biology/panels.py                 # seven panels + panels.json
-python sections/04_biology/make_excalidraw.py        # OVERWRITES the drawing
-python -m spatialaim_experiments.render 2_4                 # -> SpatialAIM-Overleaf/figures/fig_2_4.pdf
+python sections/04_biology/panels.py --mapper wann             # seven panels + panels.json
+python sections/04_biology/make_excalidraw.py --mapper wann    # create excalidraw figure
 ```
-
-## One mapper per figure
-
-The scatters show **one** mapper, `MAPPER` in `panels.py` (`nearest_centroid`).
-Both axes of a panel run the same aligner, so the mapper is a paired factor and
-never a confound; all five at once turned each panel into 50 points for 10
-datasets and read as clutter. That the result holds for every aligner belongs in
-the text.
-
-`--mapper <other>` writes a full copy of the figure into `figure_2_4_<mapper>/`
-and never touches the figure's own panels. `--all-mappers` is a trial: 50 points
-per panel, preview folder only, no manifest.
-
-Above the parity diagonal, out of ten references (September 2026):
-
-| mapper | nhood enrichment | local purity | modularity spatial | modularity reference |
-|---|---|---|---|---|
-| nearest centroid | 7 | 8 | 8 | 4 |
-| Tangram | 7 | 5 | 6 | 4 |
-| WANN | 7 | 5 | 6 | 3 |
-| TACCO | 7 | 6 | 7 | 5 |
-| DOT | 6 | 4 | 8 | 6 |
-
-Modularity over the reference's cells is the one panel where SpatialAIM usually is not
-ahead, and it is also the one whose Δ correlates positively with Δ number of cell
-types (ρ ≈ +0.4 to +0.8, negative for the other three) — it mostly reflects SpatialAIM
-using fewer cell types than the annotation.

@@ -18,15 +18,15 @@ Nothing in the tool repository reads anything from here.
 
 ```
 experiment1/            the prerequisite sweep: every pair x start mode x tree x
-                        mapper, run on the compute servers. Sections 03 and 04
-                        read its collected metrics.
+                        mapper, run under Slurm on NHR TinyFat (Tangram on CPU) with time
+                        and memory measured per run. Sections 03 and 04 read its
+                        pulled summary.
 sections/               one folder per results section of the paper, each holding
                         the runs it needs and the scripts that draw its figure
   01_overview/          Fig. 2.1  what SpatialAIM does            (hand-drawn)
-  02_robustness/        Fig. 2.2  annotation granularity   (own runs, pair 0)
+  02_robustness/        Fig. 2.2  annotation granularity   (own runs, pair 1)
   03_reconstruction/    Fig. 2.3  reconstruction & granularity vs the annotation
   04_biology/           Fig. 2.4  biological & topological plausibility
-supplement/             the supplementary dataset tables
 src/spatialaim_experiments/    the helpers every section shares (installed, see below)
 outputs/                previews, caches, trial renderings -- all regenerable,
                         all git-ignored
@@ -43,8 +43,8 @@ goes through it, and every location has an environment override:
 | What | Default | Override |
 |------|---------|----------|
 | datasets + results | `../Data` | `SPATIALAIM_DATA` |
+| Experiment 1 summary | `../Data/02_Results/experiment1` | `SPATIALAIM_EXP1` |
 | Excalidraw drawings | `../../00_Obsidian` | `SPATIALAIM_VAULT` |
-| the paper | `../SpatialAIM-Overleaf` | `SPATIALAIM_PAPER` |
 | previews and caches | `./outputs` | `SPATIALAIM_EXPERIMENTS_OUT` |
 
 Setting `SPATIALAIM_VAULT` to a scratch folder is the safe way to try a figure out: the
@@ -62,9 +62,8 @@ expensive part is the runs, and the drawing is edited by hand afterwards:
    A panel carries only what is anchored to data.
 3. **`make_excalidraw.py`** — assembles those panels into
    `figure_<n>.excalidraw.md`: letters, headings, arrows, legends.
-4. **render** — `python -m spatialaim_experiments.render 2_3` turns the drawing into
-   `SpatialAIM-Overleaf/figures/fig_2_3.pdf`. Pass `--out something.png` for a look that
-   never touches the paper.
+4. **PDF** — exported by hand from the drawing in Obsidian (Excalidraw's own export)
+   into the paper's `figures/fig_2_<n>.pdf`.
 
 > **`make_excalidraw.py` overwrites the drawing, hand edits included.** Step 2 is
 > always safe (it replaces images the drawing embeds by link); step 3 is not,
@@ -107,12 +106,12 @@ for the server-side version.
 
 ## Conventions
 
-* **Aggregate per reference, never per pair.** 71 of the 92 pairs are retina
-  islands; pooling over pairs is the retina's answer, not the corpus's.
-* **The 92 whole pairs only** (`pairs_only_raw_counts_11_12_whole.csv`), not the
-  244-pair database and not the tiled 11/12 variants.
+* **Aggregate per reference, never per pair.** 72 of the 88 pairs are retina
+  slices; pooling over pairs is the retina's answer, not the corpus's.
+* **The paper's 88 pairs** (`Data/01_Datasets_Paper/pairs.csv`, 10 references,
+  1-based PairIDs), not the older `00_Datasets_All` archive.
 * **SpatialAIM's level is `best.overall`** from `k_selection.json`; the annotation
   baseline is the identity cut at K = T of the same run tree, with the same
   mapper on both sides.
-* Nothing here writes to `Data/01_Datasets` except `sections/02_robustness/perturb.py`,
+* Nothing here writes to `Data/01_Datasets_Paper` except `sections/02_robustness/00_perturb.py`,
   which builds one perturbed reference of its own.

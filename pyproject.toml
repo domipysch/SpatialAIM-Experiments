@@ -20,7 +20,6 @@ dependencies = [
     "anndata",
     "matplotlib",
     "numpy",
-    "openpyxl",        # the supplementary dataset tables
     "pandas",
     "pyyaml",
     "scikit-learn",

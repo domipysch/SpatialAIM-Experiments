@@ -3,9 +3,8 @@
 No scripts and no data: the overview figure is a schematic, drawn by hand in
 Excalidraw. It is here so the four sections of the results are all in one place.
 
-* drawing: `00_Obsidian/Excalidraw/figure_2_1.excalidraw.md` (`$SPATIALAIM_VAULT`)
-* render: `python -m spatialaim_experiments.render 2_1` →
-  `SpatialAIM-Overleaf/figures/fig_2_1.pdf`
+* drawing: `00_Obsidian/Excalidraw/figure_1/figure_1.excalidraw.md` (`$SPATIALAIM_VAULT`)
+* PDF: exported by hand from Obsidian to the paper's `figures/fig_2_1.pdf`
 
 Figures 2.2–2.4 are siblings of this one by design: they use its palette
 (`spatialaim_experiments.style`), its Helvetica at the same sizes, and the same

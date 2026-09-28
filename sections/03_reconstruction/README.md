@@ -1,30 +1,22 @@
 # Section 03 — Reconstruction and granularity against the annotation (Fig. 2.3)
 
-No runs of its own: everything comes from `experiment1/`, reduced to one tidy
-table by `spatialaim_experiments.exp1`.
+All data comes from `experiment1/`, reduced to one tidy table by `spatialaim_experiments.exp1`.
 
-The comparison, in every panel: **SpatialAIM** (Leiden over-clustering, K = `best.overall`)
-against **the annotation** (the identity cut at K = T of the same reference),
-joined per pair, linkage and mapper, so the same aligner runs on both sides and
-only the starting partition differs. Where a reference carries two annotations,
-the baseline is the one whose identity cut scores highest *overall* — the same
-harmonic mean by which SpatialAIM picks its own K.
+## Additional information
 
-Absolute cosine similarity is not comparable across references (33-gene panels
-against 981-gene ones, and provenance sets a per-pair ceiling), so every panel is
+Absolute cosine similarity is not comparable across references, so every panel is
 a paired comparison *within* a reference, aggregated per reference.
 
 ## Running it
 
 ```bash
 python sections/03_reconstruction/panels.py          # four panels + panels.json
-python sections/03_reconstruction/make_excalidraw.py # OVERWRITES the drawing
-python -m spatialaim_experiments.render 2_3                 # -> SpatialAIM-Overleaf/figures/fig_2_3.pdf
+python sections/03_reconstruction/make_excalidraw.py # create excalidraw
 ```
 
-The first call builds `outputs/experiment1/runs.csv` if it is missing — about a
-minute over 2630 run roots. Delete that file (or `python -m spatialaim_experiments.exp1
---force`) after collecting new runs.
+It reads `Data/02_Results/experiment1/summary/best_per_run.csv`, pulled from the cluster
+(`experiment1/README.md`, step 6). `SPATIALAIM_EXP1` points at another pulled
+result, e.g. the one-pair test.
 
 ## The panels
 

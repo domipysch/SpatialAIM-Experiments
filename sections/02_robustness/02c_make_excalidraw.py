@@ -1,14 +1,13 @@
 # Assemble the Results 2.2 figure as an Excalidraw drawing in the Obsidian vault.
 #
-# The data panels are the PNGs written by panels.py, embedded by wikilink --
+# The data panels are the PNGs written by 02b_panels.py, embedded by wikilink --
 # re-running that script updates them in place. This script draws what makes the
 # panels readable as a pipeline: the arrows between them, the label each arrow
 # carries, the panel letters and three legends. Anything else belongs in the
 # caption.
 #
-# One mapper per invocation (``--mapper``, default Tangram, the figure the paper
-# prints); every other mapper is assembled from figure_2_2_<mapper>/ into
-# figure_2_2_<mapper>.excalidraw.md.
+# One mapper per invocation (``--mapper``, required), assembled from
+# figure_2/<mapper>/panels/ into figure_2/<mapper>/figure_2_<mapper>.excalidraw.md.
 #
 # A band of keys, then three rows of four even columns, one arrow per column:
 #
@@ -44,11 +43,7 @@ from spatialaim_experiments.style import GREY, INK, MAPPERS, SCALE
 
 logger = logging.getLogger(__name__)
 
-FIGURE = "2_2"
-# set by main() from --mapper; Tangram keeps the unsuffixed names, every other
-# mapper gets its own copy of the same figure next to it
-PANELS = paths.panel_dir(FIGURE)
-OUT = paths.drawing(FIGURE)
+FIGURE = "2"
 
 PAD = 14
 # The paper places the figure at its 5.17 in text width, so the drawing is scaled
@@ -68,31 +63,30 @@ FS_HEAD = 40          # the heading next to a panel letter
 HEAD_DX = 44          # letter to heading
 COL_W = 470           # four even columns: two aligner baselines, two SpatialAIM runs
 ARROW_LEN = 88        # the arrows between the first two rows
-ROW3_GAP = 32         # second row's panels to the last row. Small, because
+ROW3_GAP = 56         # second row's panels to the last row. Small, because
                       # nothing stands over that row any more: its letter and
                       # heading sit beside the panel, not above it.
 INSET = 16            # an arrow starts this far below the panel it leaves
-ARROW_CLEAR = 22      # and stops this far above the heading of the row below
+ARROW_CLEAR = 44      # and stops this far above the heading of the row below
 SCORE_DROP = 6        # the score panels hang a little below the row's line, as
                       # placed by hand: their axes then sit level with the UMAPs
 
 LINE = FS_HEAD * 1.2  # one line of heading
 
 # What each panel says -- the wording is the figure's, so it lives here and not in
-# the caption. The second value is how far the heading is lifted off the letter
-# line; None, which they all are, centres it on the letter: a one-line heading
-# sits next to it, a two-line one straddles it half a line up. The letters of a
-# row are all on the letter line either way.
+# the caption. A heading is centred on its letter: a one-line heading sits next
+# to it, a two-line one straddles it half a line up. The letters of a row are all
+# on the letter line either way.
 HEADINGS = {
-    "umap_celltype": ("Coarse annotation", None),
-    "umap_split": ("Induced split", None),
-    "scores_split": ("SpatialAIM on split" + chr(10) + "cell types", None),
-    "scores_overcluster": ("SpatialAIM without" + chr(10) + "start annotation", None),
-    "map_celltype": ("Mapped cell types", None),
-    "map_split": ("Glut. A & B mapped at random", None),
-    "map_split_aim": ("Glut. A & B re-merged", None),
-    "map_overcluster_aim": ("Finer cell types detected", None),
-    "dots_states_fine": ("Found types correspond to finer cell types", None),
+    "umap_celltype": "Coarse annotation",
+    "umap_split": "Induced split",
+    "scores_split": "SpatialAIM on split\ncell types",
+    "scores_overcluster": "SpatialAIM without\nstart annotation",
+    "map_celltype": "Mapped cell types",
+    "map_split": "Glut. A & B mapped at random",
+    "map_split_aim": "Glut. A & B re-merged",
+    "map_overcluster_aim": "Finer cell types detected",
+    "dots_states_fine": "Found types correspond to finer cell types",
 }
 
 # The two keys to the panels above. They name a band across the top of the
@@ -102,12 +96,7 @@ HEAD_SPLIT = "Induced type split"
 HEAD_CRITERIA = "Criteria"
 HEAD_STATES = "interpreted cell types"
 
-# set by main(), once --mapper says which figure this is
-drawing = Drawing("f22", PANELS, paths.VAULT)
-
-
-def dot(cx, cy, d, colour):
-    return drawing.dot(cx, cy, d, colour)
+drawing: Drawing | None = None  # set by main(), once --mapper says which figure this is
 
 
 def text(body: str, x, y, size=FS_LEG, colour=INK, right=False):
@@ -115,20 +104,11 @@ def text(body: str, x, y, size=FS_LEG, colour=INK, right=False):
                         align="right" if right else "left")
 
 
-def image(name: str, x, y, manifest: dict):
-    return drawing.image(name, x, y, manifest)
-
-
-def arrow(points, **kw):
-    return drawing.arrow(points, **kw)
-
-
-
 def swatch(x: float, y: float, entry, kind: str) -> None:
     """The mark in front of a legend label: a dot for a cell type, a rule in the
     curve's own weight for a criterion."""
     if kind == "dot":
-        dot(x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
+        drawing.dot(x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
     else:
         drawing.line(x, y + FS_LEG * 0.6, 44, entry[1],
                      stroke=1.6 if entry[2] > 1 else 1)
@@ -182,8 +162,8 @@ def build(manifest: dict) -> None:
     # mapper but DOT, which proposes the annotation it was handed (K = 4, the
     # four annotated types) -- there the panel shows the split kept, and saying
     # "re-merged" over it would contradict the picture underneath.
-    if manifest.get("k_split", 3) >= 4:
-        HEADINGS["map_split_aim"] = ("Split halves kept", None)
+    if manifest["k_split"] >= 4:
+        HEADINGS["map_split_aim"] = "Split halves kept"
 
     def size(name: str) -> tuple[float, float]:
         return panels[name]["w"], panels[name]["h"]
@@ -196,13 +176,11 @@ def build(manifest: dict) -> None:
 
     def place(name: str, column: int, top: float, letter: str,
               drop: float = 0, room: float = COL_W) -> dict:
-        heading, rise = HEADINGS[name]
-        heading = wrap(heading, room - HEAD_DX, FS_HEAD)
-        if rise is None:
-            rise = heading.count(chr(10)) * LINE / 2
+        heading = wrap(HEADINGS[name], room - HEAD_DX, FS_HEAD)
+        rise = heading.count("\n") * LINE / 2
         w, _ = size(name)
         x = middle[column] - w / 2
-        element = image(name, x, top + drop, manifest)
+        element = drawing.image(name, x, top + drop, manifest)
         text(letter, x, top - LETTER_DROP, size=FS_LETTER)
         text(heading, x + HEAD_DX, top - LETTER_DROP + 9 - rise, size=FS_HEAD)
         return element
@@ -211,8 +189,7 @@ def build(manifest: dict) -> None:
     # line of it, since the heading is centred on the letter. It is what the space
     # over a row has to hold, and where an arrow into that row has to stop.
     def heading_lift(name: str) -> float:
-        return wrap(HEADINGS[name][0], COL_W - HEAD_DX,
-                    FS_HEAD).count(chr(10)) * LINE / 2
+        return wrap(HEADINGS[name], COL_W - HEAD_DX, FS_HEAD).count("\n") * LINE / 2
 
     # ---------------- the two keys, as a band across the top ----------------
     # They used to stand in the last row, seven stacked entries deep. Side by
@@ -268,11 +245,11 @@ def build(manifest: dict) -> None:
     # down the middle of their column, over the same span, with the mapper's name
     # hung off the same side at the same offset.
     start = row1_bottom + INSET
+    name = manifest["mapper_name"]
     for column in range(4):
         # the label always sits to the left of its arrow, and the two of them
         # together are centred in the column -- so the arrow itself is off centre
         # by half the label
-        name = manifest.get("mapper_name", "Tangram")
         # "SpatialAIM with Tangram" is wider than its column but the columns are
         # not touching, so it is allowed to reach into the gap and stay on one
         # line, as set by hand in the drawing. A long mapper name ("SpatialAIM
@@ -283,7 +260,7 @@ def build(manifest: dict) -> None:
         x = middle[column] + (text_size(label, FS_LEG)[0] + 12) / 2
         end = (row2_top - LETTER_DROP + 9 - heading_lift(row2_names[column])
                - ARROW_CLEAR)
-        arrow([(x, start), (x, end)])
+        drawing.arrow([(x, start), (x, end)])
         text(label, x - 12, start + 10, right=True)
 
     # ---------------- last row: the composition panel and its key -----------
@@ -292,10 +269,10 @@ def build(manifest: dict) -> None:
     # the last column of the rows above begins -- so the row is read against the
     # same grid even though it is not built from it.
     states = [(f"{s['n']}  {s['name']}", s["colour"]) for s in legends["states"]]
-    head = HEADINGS["dots_states_fine"][0]
+    head = HEADINGS["dots_states_fine"]
     key_x = left[3]
     head_right = PAD + HEAD_DX + text_size(head, FS_HEAD)[0]
-    dots = image("dots_states_fine",
+    dots = drawing.image("dots_states_fine",
                  head_right + (key_x - head_right - size("dots_states_fine")[0]) / 2,
                  row3_top, manifest)
 
@@ -308,7 +285,7 @@ def build(manifest: dict) -> None:
     text(HEAD_STATES, key_x, heading_y, colour=GREY)
     for entry, state in zip(states, legends["states"]):
         y = row3_top + state["y"] * row3_h - FS_LEG * 0.6
-        dot(key_x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
+        drawing.dot(key_x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
         text(entry[0], key_x + LEG_INDENT, y)
 
     # (i) is named beside its panel rather than over it, on the line its key
@@ -319,20 +296,17 @@ def build(manifest: dict) -> None:
 
 
 def main() -> None:
-    global PANELS, OUT, drawing
+    global drawing
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--mapper", default="tangram", choices=MAPPERS,
-                    help="which mapper's panels to assemble (default tangram)")
+    ap.add_argument("--mapper", required=True, choices=MAPPERS,
+                    help="which mapper's panels to assemble")
     mapper = ap.parse_args().mapper
-    copy = None if mapper == "tangram" else mapper
-    PANELS = paths.panel_dir(FIGURE, copy)
-    OUT = paths.drawing(FIGURE, copy)
-    drawing = Drawing("f22", PANELS, paths.VAULT)
+    panel_dir = paths.panel_dir(FIGURE, mapper)
+    drawing = Drawing("f22", panel_dir, paths.VAULT)
 
-    manifest = json.loads((PANELS / "panels.json").read_text(encoding="utf-8"))
-    build(manifest)
+    build(json.loads((panel_dir / "panels.json").read_text(encoding="utf-8")))
     drawing.check()
-    drawing.write(OUT)
+    drawing.write(paths.drawing(FIGURE, mapper))
 
 
 if __name__ == "__main__":

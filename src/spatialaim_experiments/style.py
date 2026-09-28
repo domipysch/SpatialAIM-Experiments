@@ -70,6 +70,11 @@ MAPPER_LABELS = {
 TREES = ["ward", "average"]
 TREE_LABELS = {"ward": "ward", "average": "avg"}
 
+# Figure 3's heat maps: the plotting box inside each image as (left, bottom, width,
+# height) fractions. Its panels.py draws the rows into it; its make_excalidraw.py
+# places the linkage labels and mapper bars against those rows.
+HEAT_AXES = (0.02, 0.265, 0.96, 0.475)
+
 # The ten references in corpus order -- the column order of every heat map --
 # and the short name each is labelled with.
 REFERENCE_LABELS = {
@@ -78,11 +83,11 @@ REFERENCE_LABELS = {
     "03_mouse-liver": "liver",
     "04_mouse-kidney": "kidney",
     "05_mouse-embryo": "embryo",
-    "07_mouse-retina": "retina",
-    "09_mouse-mpfc": "mPFC",
-    "10_mouse-visual-cortex": "visual",
-    "11_human-breast-cancer": "breast",
-    "12_human-mtg": "MTG",
+    "06_mouse-retina": "retina",
+    "07_mouse-mpfc": "mPFC",
+    "08_mouse-visual-cortex": "visual",
+    "09_human-breast-cancer": "breast",
+    "10_human-mtg": "MTG",
 }
 
 # Difference in how many cell types a mapping used, on its own hue pair so that

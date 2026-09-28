@@ -1,10 +1,11 @@
 # Panels of the Results 2.2 figure, each as its own image, for assembly in
-# Excalidraw (the vault's Excalidraw/figure_2_2.excalidraw.md).
+# Excalidraw (the vault's Excalidraw/figure_2/<mapper>/figure_2_<mapper>.excalidraw.md).
 #
-# One mapper per invocation (``--mapper``, default Tangram, which is the figure
-# the paper prints). Every other mapper writes its panels to
-# Excalidraw\figure_2_2_<mapper>\ and is assembled into its own drawing, so the
-# same figure exists once per mapper.
+# One mapper per invocation (``--mapper``, required); every mapper gets the same
+# figure. The panels + panels.json go to Data/02_Results/robustness/plots/<mapper>/
+# and are copied into the vault folder the drawing embeds them from
+# (Excalidraw/figure_2/<mapper>/panels/): the drawing can only link to files
+# inside the vault.
 #
 # The figure carries almost no text: what is not anchored to data (letters,
 # legends) is drawn in Excalidraw, and everything else belongs in the caption.
@@ -27,7 +28,7 @@
 # of every map.
 #
 # Sizes are given in final print inches, at the width the figure will have in the
-# paper; panels.json records what was written, so make_excalidraw.py can place
+# paper; panels.json records what was written, so 02c_make_excalidraw.py can place
 # each image at its true size.
 #
 # Run from spatialaim_env (see the section README).
@@ -35,27 +36,182 @@
 import argparse
 import json
 import logging
+import shutil
+from pathlib import Path
 
 import anndata as ad
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap, to_hex
 
-import plot_granularity as gran               # sibling scripts: the data access
-import plot_invisible_split as split          # and palette of each half
-
 from spatialaim_experiments import paths
-from spatialaim_experiments.style import PanelWriter
+from spatialaim_experiments.style import (
+    C_COHERENCE,
+    C_GLUT,
+    C_RECON,
+    C_SPATIAL,
+    INK,
+    MAPPER_LABELS as DISPLAY,
+    PALE as C_GREY,
+    PanelWriter,
+)
 
 logger = logging.getLogger(__name__)
 
-# both plot modules set their own rcParams on import; this figure needs larger
-plt.rcParams.update({"xtick.labelsize": 9.2, "ytick.labelsize": 9.2})
+mpl.rcParams.update({
+    "font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 9.2, "ytick.labelsize": 9.2,
+    "axes.linewidth": 0.6, "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+    "xtick.major.size": 2.0, "ytick.major.size": 2.0,
+})
 
-FIGURE = "2_2"
-# rebound by main() once the mapper is known; Tangram keeps the unsuffixed folder
-panels = PanelWriter(paths.panel_dir(FIGURE))
+
+# --------------------------------------------------------------------------
+# the runs (01_run_robustness_experiments.ps1) and how to read them
+# --------------------------------------------------------------------------
+
+# run folders under Data/02_Results/robustness; each holds one run root per mapper
+RUN_ORIGINAL = "original_annotation"           # cellType, 3 types
+RUN_SPLIT = "invisible_split"                  # cellType_split, 4 types
+RUN_OVERCLUSTER = "original_leiden_overcluster"
+ST_PATH = paths.DATASETS / "ST" / "01_mouse-ssp.h5ad"
+
+MAPPER: str | None = None  # set by main() from --mapper
+
+
+def run_dir(run: str) -> Path:
+    """One mapper's run root; its parent holds the shared reference scaffold."""
+    return paths.ROBUSTNESS / run / MAPPER
+
+
+def analysis_dir() -> Path:
+    """Where 02a_analyse_invisible_split.py puts this mapper's numbers."""
+    return paths.ROBUSTNESS / "_analysis" / MAPPER
+
+
+def spot_types(run: str, k: int) -> np.ndarray:
+    """Hard spot assignment as annotated cell type names."""
+    d = run_dir(run)
+    sc = ad.read_h5ad(d / "start_clustering.h5ad")
+    cut = pd.read_csv(d / f"k_{k:03d}" / "start_cluster_to_state.csv")
+    to_state = dict(zip(cut["start_cluster"], cut["state"]))
+    names: dict[int, set] = {}
+    for c, nm in zip(sc.obs["start_cluster"].astype(int), sc.obs["start_cluster_name"].astype(str)):
+        names.setdefault(to_state[c], set()).add(nm)
+    label = {s: " + ".join(sorted(v)) for s, v in names.items()}
+    return np.array([label[s] for s in spot_states(run, k)], dtype=object)
+
+
+def spot_states(run: str, k: int) -> np.ndarray:
+    """Hard spot assignment as state ids."""
+    P = np.asarray(ad.read_h5ad(run_dir(run) / f"k_{k:03d}" /
+                                "spot_to_state_mapping_soft.h5ad").X)
+    return np.argmax(P, axis=1)
+
+
+def cell_states(run: str, k: int) -> np.ndarray:
+    """Reference cells labelled by the state they belong to at this cut."""
+    d = run_dir(run)
+    sc = ad.read_h5ad(d / "start_clustering.h5ad")
+    cut = pd.read_csv(d / f"k_{k:03d}" / "start_cluster_to_state.csv")
+    to_state = dict(zip(cut["start_cluster"], cut["state"]))
+    return np.array([to_state[int(c)] for c in sc.obs["start_cluster"]])
+
+
+# --------------------------------------------------------------------------
+# the invisible split: its cell types and their colours
+# --------------------------------------------------------------------------
+
+# The whole argument of this figure is about one annotated cell type -- the one
+# that gets split, and the one an over-clustering resolves further. GABAergic and
+# Non-Neuronal cells carry no part of it, so every panel that draws cells greys
+# them out.
+TARGET = "Glutamatergic"
+A, B = f"{TARGET}_A", f"{TARGET}_B"
+# The two phantom halves get hues of their own: neither is a cell type the
+# reference really has, so neither may wear the Glutamatergic orange.
+C_GLUT_A = "#E6C200"
+C_GLUT_B = "#8C3CC8"
+TYPE_COLOURS = {TARGET: C_GLUT, A: C_GLUT_A, B: C_GLUT_B}
+
+
+def colour_of(label: str) -> str:
+    """A cell's or spot's colour from its type name: the two halves merged read as
+    Glutamatergic, every other family is grey."""
+    if label in TYPE_COLOURS:
+        return TYPE_COLOURS[label]
+    if set(p.strip() for p in label.split("+")) == {A, B}:
+        return C_GLUT
+    return C_GREY
+
+
+# --------------------------------------------------------------------------
+# the over-clustering: its states read against the fine annotation
+# --------------------------------------------------------------------------
+
+# The excitatory fine types, superficial -> deep: a state whose dominant fine type
+# is one of them is shown, in this order.
+EXCITATORY = {"L2/3 IT CTX": 0, "L4/5 IT CTX": 1, "L5 IT CTX": 2, "L5 PT CTX": 2,
+              "L5/6 NP CTX": 2, "L6 IT CTX": 3, "L6 CT CTX": 3, "Car3": 3, "L6b CTX": 4}
+NON_NEURONAL = {"Endo", "Astro", "VLMC", "Oligo", "SMC-Peri", "Micro-PVM"}
+
+# How to read a state, keyed by the fine type that dominates it -- an
+# interpretation of the composition panel, not an input to the run. Named by
+# depth, so the label does not merely repeat the column beneath it.
+STATE_NAMES = {"L2/3 IT CTX": "upper layers", "L4/5 IT CTX": "layer 4/5",
+               "L6 IT CTX": "deep layers"}
+
+# The fine annotation's types, in the composition panel's column order. A state's
+# shares are taken over all of them, the six non-neuronal types pooled -- with 1
+# to 10 cells each they say nothing on their own.
+FINE_ORDER = ["L2/3 IT CTX", "L4/5 IT CTX", "L5 IT CTX", "L5 PT CTX", "L5/6 NP CTX",
+              "L6 IT CTX", "L6 CT CTX", "L6b CTX", "Car3",
+              "Vip", "Sncg", "Lamp5", "Sst", "Pvalb", "Sst Chodl", "Meis2"]
+POOLED_NONN = "non-neuronal"
+# Dots below this share are dropped: single cells would otherwise speckle the panel.
+MIN_DOT_SHARE = 0.02
+
+# (k_comparison.csv column, legend label, colour, line width)
+CRITERIA = [
+    ("overall", "overall", INK, 1.6),
+    ("recon", "reconstruction", C_RECON, 1.0),
+    ("spatial", "spatial", C_SPATIAL, 1.0),
+    ("coherence", "coherence", C_COHERENCE, 1.0),
+]
+
+
+def composition(states: np.ndarray, fine: np.ndarray) -> pd.DataFrame:
+    """State x fine-type fractions, non-neuronal types pooled into one column."""
+    fine = np.where(np.isin(fine, list(NON_NEURONAL)), POOLED_NONN, fine)
+    table = pd.crosstab(states, fine)
+    for column in FINE_ORDER + [POOLED_NONN]:
+        if column not in table:
+            table[column] = 0
+    table = table[FINE_ORDER + [POOLED_NONN]]
+    return table.div(table.sum(axis=1), axis=0)
+
+
+def excitatory_states(fractions: pd.DataFrame) -> pd.DataFrame:
+    """The states dominated by an excitatory fine type, superficial -> deep, each
+    with that type, its name and a colour along the ramp."""
+    rows = []
+    for state, row in fractions.iterrows():
+        dominant = str(row.idxmax())
+        if dominant in EXCITATORY:
+            rows.append({"state": state, "dominant": dominant, "rank": EXCITATORY[dominant],
+                         "name": STATE_NAMES.get(dominant, dominant)})
+    out = pd.DataFrame(rows).sort_values("rank", kind="stable").set_index("state")
+    out["colour"] = state_ramp(len(out))
+    return out
+
+
+# --------------------------------------------------------------------------
+# the figure
+# --------------------------------------------------------------------------
+
+FIGURE = "2"
+panels: PanelWriter | None = None  # set by main(), once the mapper is known
 
 # the cortex ends here: below it the section narrows into white matter, CA1 and
 # the ventricle
@@ -90,24 +246,11 @@ FS_TICK = 9.2
 FS_SMALL = 7.8
 FS_ROW = 8.5
 
-# criterion names short enough for a legend column
-CRITERION_LABELS = {"recon": "reconstruction", "spatial": "spatial",
-                    "coherence": "coherence", "overall": "overall"}
-COARSE_LEGEND = [("Glutamatergic", split.C_GLUT), ("GABAergic", split.C_GABA),
-                 ("Non-Neuronal", split.C_NONN)]
-SPLIT_LEGEND = [("Glut. A (Unedited)", split.C_GLUT_A), ("Glut. B (+ marker panel)", split.C_GLUT_B)]
+# the key of the cell-type colours (02c_make_excalidraw.py draws it)
+TYPE_LEGEND = [("Glutamatergic", C_GLUT), ("Glut. A (Unedited)", C_GLUT_A),
+               ("Glut. B (+ marker panel)", C_GLUT_B)]
 
-# The whole argument of this figure is about one annotated cell type -- the one
-# that gets split, and the one an over-clustering resolves further. GABAergic and
-# Non-Neuronal cells carry no part of it, so in every panel that draws cells they
-# are greyed out rather than coloured: (a), (b), (e), (f), (g) by label, and (h)
-# by the family of each SpatialAIM state's dominant fine type. The composition panel (i)
-# keeps all three families in colour -- it is the one place the other two are the
-# point.
-GREYED_TYPES = {"GABAergic", "Non-Neuronal"}
-FOCUS_FAMILIES = {"exc"}
-
-# The inferred types that survive that focus, superficial -> deep. A ramp,
+# The inferred excitatory types, superficial -> deep. A ramp,
 # because they are ordered by cortical depth, but a blue one: the shades of
 # Glutamatergic orange they used to carry were the same hue as the annotated type
 # in (a), (e), (g), and the two readings kept being confused. Blue is free --
@@ -127,28 +270,16 @@ def state_ramp(n: int) -> list[str]:
     return [to_hex(ramp(i / (n - 1))) for i in range(n)]
 
 
-def focus_colour(label: str) -> str:
-    """``split.colour_of``, with the two families this figure is not about grey."""
-    return split.C_GREY if label in GREYED_TYPES else split.colour_of(label)
-
-
-def save(fig, name: str) -> None:
-    panels.save(fig, name)
-
-
 # --------------------------------------------------------------------------
 # points panels: one axes filling the whole image, so the panel is the data
 # --------------------------------------------------------------------------
 
-def points_figure(size: tuple[float, float], frame: bool):
+def points_figure(size: tuple[float, float]):
+    """One frameless axes filling the whole image."""
     fig = plt.figure(figsize=size)
     ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xticks([]); ax.set_yticks([])
+    ax.set_axis_off()
     ax.set_aspect("equal")
-    for spine in ax.spines.values():
-        spine.set_visible(frame)
-        spine.set_linewidth(0.5)
-        spine.set_edgecolor("0.75")
     return fig, ax
 
 
@@ -165,22 +296,22 @@ def umap_panel(name: str, embedding, labels) -> None:
     margin = 0.03
     (x0, y0), (x1, y1) = embedding.min(axis=0), embedding.max(axis=0)
     dx, dy = (x1 - x0) * (1 + 2 * margin), (y1 - y0) * (1 + 2 * margin)
-    fig, ax = points_figure((UMAP_W, UMAP_W * dy / dx), frame=True)
-    draw(ax, embedding, [focus_colour(x) for x in labels], 0.7)
+    fig, ax = points_figure((UMAP_W, UMAP_W * dy / dx))
+    draw(ax, embedding, [colour_of(x) for x in labels], 0.7)
     ax.set_xlim(x0 - margin * dx, x1 + margin * dx)
     ax.set_ylim(y0 - margin * dy, y1 + margin * dy)
-    save(fig, name)
+    panels.save(fig, name)
 
 
 def map_panel(name: str, xy, colours) -> None:
     """All four maps are the same size, so any two of them can be compared."""
     x0, x1 = float(xy[:, 0].min()), float(xy[:, 0].max())
     y1 = float(xy[:, 1].max())
-    fig, ax = points_figure((MAP_W, MAP_W * (y1 - CROP_Y) / (x1 - x0)), frame=False)
+    fig, ax = points_figure((MAP_W, MAP_W * (y1 - CROP_Y) / (x1 - x0)))
     draw(ax, xy, colours, 1.2)
     ax.set_xlim(x0, x1)
     ax.set_ylim(CROP_Y, y1)
-    save(fig, name)
+    panels.save(fig, name)
 
 
 # --------------------------------------------------------------------------
@@ -194,7 +325,7 @@ def scores_panel(name: str, scores: pd.DataFrame, k_best: int, dense: bool) -> N
     ax.axvspan(k_best - half, k_best + half, color="0.85", alpha=0.6, lw=0)
     ax.text(k_best, 1.03, f"$K$={k_best}", fontsize=FS_TICK, color="0.25",
             ha="center", va="bottom")
-    for key, _label, colour, lw in gran.CRITERIA:
+    for key, _label, colour, lw in CRITERIA:
         if not scores[key].notna().any():
             continue
         if dense:
@@ -216,7 +347,7 @@ def scores_panel(name: str, scores: pd.DataFrame, k_best: int, dense: bool) -> N
     # would run out of both ends of the image.
     ax.set_ylabel("mapping\nscores", fontsize=FS_TICK, labelpad=1.5,
                   linespacing=1.05)
-    save(fig, name)
+    panels.save(fig, name)
 
 
 # --------------------------------------------------------------------------
@@ -228,7 +359,7 @@ def dots_panel(name: str, fractions: pd.DataFrame,
     """``fractions`` is already restricted to the states being shown, so the
     columns follow: a fine type with no mass in any of them drops out of the
     panel entirely rather than sitting there as an empty column."""
-    columns = [c for c in fractions.columns if fractions[c].max() >= gran.MIN_DOT_SHARE]
+    columns = [c for c in fractions.columns if fractions[c].max() >= MIN_DOT_SHARE]
     rows = list(states.index)
     m = DOTS_MARGIN
     size = (m["left"] + len(columns) * COL_PITCH + m["right"],
@@ -240,7 +371,7 @@ def dots_panel(name: str, fractions: pd.DataFrame,
     for x, column in enumerate(columns):
         for y, state in enumerate(rows):
             share = fractions.loc[state, column]
-            if share < gran.MIN_DOT_SHARE:
+            if share < MIN_DOT_SHARE:
                 continue
             ax.scatter([x], [y], s=2 + DOT_SCALE * share,
                        color=states.loc[state, "colour"],
@@ -253,35 +384,19 @@ def dots_panel(name: str, fractions: pd.DataFrame,
     ax.set_yticklabels([str(i + 1) for i in range(len(rows))], fontsize=FS_ROW,
                        color="#1e1e1e")
 
+    # one bracket over all columns: they are the coarse type the figure is about
     trans = ax.get_xaxis_transform()
-    groups = [gran.coarse_of(c) for c in columns]
-    start = 0
-    for i in range(len(columns) + 1):
-        if i == len(columns) or groups[i] != groups[start]:
-            left, right = start - 0.32, i - 1 + 0.32
-            middle = (left + right) / 2
-            ax.plot([left, left, right, right], [1.015, 1.05, 1.05, 1.015],
-                    transform=trans, color="0.55", lw=0.5, clip_on=False,
-                    solid_capstyle="butt")
-            if right - left > 1.5:
-                ax.text(middle, 1.06, groups[start], transform=trans, ha="center",
-                        va="bottom", fontsize=FS_SMALL, color="0.35")
-            else:
-                # a narrow group cannot carry a centred label without running into
-                # its neighbour: lift it a tier and hang it off a leader line
-                ax.plot([middle, middle], [1.05, 1.105], transform=trans, color="0.55",
-                        lw=0.5, clip_on=False, solid_capstyle="butt")
-                ax.text(middle + 0.35, 1.11, groups[start], transform=trans,
-                        ha="right", va="bottom", fontsize=FS_SMALL, color="0.35")
-            if i < len(columns):
-                ax.axvline(i - 0.5, color="0.9", lw=0.5, zorder=1)
-            start = i
+    left, right = -0.32, len(columns) - 1 + 0.32
+    ax.plot([left, left, right, right], [1.015, 1.05, 1.05, 1.015],
+            transform=trans, color="0.55", lw=0.5, clip_on=False, solid_capstyle="butt")
+    ax.text((left + right) / 2, 1.06, TARGET, transform=trans, ha="center",
+            va="bottom", fontsize=FS_SMALL, color="0.35")
     ax.grid(True, lw=0.3, color="0.92", zorder=0)
     ax.set_axisbelow(True)
     for spine in ax.spines.values():
         spine.set_visible(False)
     ax.tick_params(length=0, pad=1.5)
-    save(fig, name)
+    panels.save(fig, name)
     # where each row sits in the panel, as a fraction of its height from the top
     bottom, height = axes[1], axes[3]
     n = len(rows)
@@ -289,81 +404,70 @@ def dots_panel(name: str, fractions: pd.DataFrame,
 
 
 def main() -> None:
-    global panels
+    global panels, MAPPER
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--mapper", default="tangram", choices=sorted(split.DISPLAY),
-                    help="which mapper's runs to draw (default tangram)")
-    mapper = ap.parse_args().mapper
-    # both plot modules resolve their run directories through this
-    gran.MAPPER = split.MAPPER = mapper
-    panels = PanelWriter(paths.panel_dir(FIGURE,
-                                         None if mapper == "tangram" else mapper))
+    ap.add_argument("--mapper", required=True, choices=sorted(DISPLAY),
+                    help="which mapper's runs to draw")
+    mapper = MAPPER = ap.parse_args().mapper
+    out = paths.ROBUSTNESS / "plots" / mapper
+    panels = PanelWriter(out)
 
-    st = ad.read_h5ad(gran.ST_PATH, backed="r")
+    st = ad.read_h5ad(ST_PATH, backed="r")
     xy = np.asarray(st.obsm["spatial"], dtype=float)
 
     # ---------------- the reference and its two annotations ----------------
-    scaffold = ad.read_h5ad(split.ROOT / "split" / "reference_scaffold.h5ad", backed="r")
+    scaffold = ad.read_h5ad(run_dir(RUN_SPLIT).parent / "reference_scaffold.h5ad", backed="r")
     emb = np.asarray(scaffold.obsm["X_umap_shared_genes"])
     umap_panel("umap_celltype", emb, scaffold.obs["cellType"].astype(str).to_numpy())
     umap_panel("umap_split", emb, scaffold.obs["cellType_split"].astype(str).to_numpy())
 
-    res = json.loads((split.analysis_dir() / "results.json").read_text(encoding="utf-8"))
+    res = json.loads((analysis_dir() / "results.json").read_text(encoding="utf-8"))
     # (g) is whatever level this run proposes -- K=3, the re-merge, for every
     # mapper so far, but the panel follows the proposal rather than asserting it
-    k_split = int(res["selection"]["split"]["best"]["overall"])
-    for name, reference, k in [("map_celltype", "original", 3),
-                               ("map_split", "split", 4),
-                               ("map_split_aim", "split", k_split)]:
-        types = split.spot_types(reference, k)
-        map_panel(name, xy, [focus_colour(t) for t in types])
+    k_split = int(res["k_proposed"]["overall"])
+    for name, run, k in [("map_celltype", RUN_ORIGINAL, 3),
+                         ("map_split", RUN_SPLIT, 4),
+                         ("map_split_aim", RUN_SPLIT, k_split)]:
+        map_panel(name, xy, [colour_of(t) for t in spot_types(run, k)])
 
-    scores_panel("scores_split", pd.DataFrame(res["scores"]["split"]), k_split, dense=False)
+    scores_panel("scores_split", pd.DataFrame(res["scores"]), k_split, dense=False)
 
     # ---------------- too coarse: over-clustering as the starting point ------
-    selection = json.loads((gran.run_dir(gran.RUN_OVERCLUSTER) / "k_selection.json")
+    selection = json.loads((run_dir(RUN_OVERCLUSTER) / "k_selection.json")
                            .read_text(encoding="utf-8"))
     k_best = int(selection["best"]["overall"]["k"])
 
-    ref = ad.read_h5ad(gran.RUN_OVERCLUSTER / "reference_scaffold.h5ad", backed="r")
+    ref = ad.read_h5ad(run_dir(RUN_OVERCLUSTER).parent / "reference_scaffold.h5ad", backed="r")
     fine = ref.obs["cellTypeMinor"].astype(str).to_numpy()
-    cells, _ = gran.cell_states(gran.RUN_OVERCLUSTER, k_best)
-    fractions = gran.composition(cells, fine)
-    states = gran.describe_states(fractions)
-
-    # Everything below this line is about the excitatory states alone: the other
-    # families are grey on the slice and absent from the composition panel, so
-    # the figure asks one question throughout.
-    states = states[states["family"].isin(FOCUS_FAMILIES)].copy()
-    states["colour"] = state_ramp(len(states))
+    fractions = composition(cell_states(RUN_OVERCLUSTER, k_best), fine)
+    # Only the excitatory states are shown: the other families are grey on the
+    # slice and absent from the composition panel, so the figure asks one
+    # question throughout.
+    states = excitatory_states(fractions)
 
     colours = states["colour"].to_dict()
     map_panel("map_overcluster_aim", xy,
-              [colours.get(s, gran.C_GREY)
-               for s in gran.spot_states(gran.RUN_OVERCLUSTER, k_best)])
+              [colours.get(s, C_GREY)
+               for s in spot_states(RUN_OVERCLUSTER, k_best)])
     scores_panel("scores_overcluster",
-                 pd.read_csv(gran.run_dir(gran.RUN_OVERCLUSTER) / "k_comparison.csv"),
+                 pd.read_csv(run_dir(RUN_OVERCLUSTER) / "k_comparison.csv"),
                  k_best, dense=True)
     # Columns too, not just rows: state 1 carries a little Lamp5, which would
-    # otherwise leave one GABAergic column and its bracket standing alone in a
-    # panel that is about the excitatory types.
-    excitatory = [c for c in fractions.columns if gran.coarse_of(c) == "Glutamatergic"]
+    # otherwise leave one GABAergic column standing alone in a panel that is
+    # about the excitatory types.
+    excitatory = [c for c in fractions.columns if c in EXCITATORY]
     row_y = dots_panel("dots_states_fine",
                        fractions.loc[states.index, excitatory], states)
 
     # ---------------- what the legends need to say ----------------
     panels.write_manifest({
         "mapper": mapper,
-        "mapper_name": split.DISPLAY[mapper],
+        "mapper_name": DISPLAY[mapper],
         "k_split": k_split,
         "k_overcluster": k_best,
         "legends": {
-            # Only the cell type this figure is about. GABAergic and
-            # Non-Neuronal are grey in every panel that draws cells and carry no
-            # column of (i), so their two hues appear nowhere in the figure.
-            "annotation": COARSE_LEGEND[:1] + SPLIT_LEGEND,
-            "criteria": [[CRITERION_LABELS[key], colour, lw]
-                         for key, _label, colour, lw in gran.CRITERIA],
+            "annotation": TYPE_LEGEND,
+            "criteria": [[label, colour, lw] for _key, label, colour, lw in CRITERIA],
             "states": [{"n": i + 1, "colour": states.loc[s, "colour"],
                         "name": states.loc[s, "name"],
                         "dominant": states.loc[s, "dominant"], "y": row_y[i]}
@@ -371,6 +475,11 @@ def main() -> None:
         },
     })
     logger.info("states:\n%s", states.to_string())
+
+    # the copy the Excalidraw drawing embeds
+    vault_dir = paths.panel_dir(FIGURE, mapper)
+    shutil.copytree(out, vault_dir, dirs_exist_ok=True)
+    logger.info("copied to %s", vault_dir)
 
 
 if __name__ == "__main__":

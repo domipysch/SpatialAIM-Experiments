@@ -28,7 +28,7 @@ from .style import GREY, INK, SCALE
 
 logger = logging.getLogger(__name__)
 
-FONT = 2              # Helvetica, as in figure_2_1
+FONT = 2              # Helvetica, as in figure 1
 WIDTH = 7.2 * SCALE   # the width every figure is drawn at
 
 # Helvetica is proportional, so a text element's width has to be estimated per
@@ -179,7 +179,7 @@ class Drawing:
 
     def arrow(self, points: list[tuple[float, float]], colour: str = GREY,
               **kw) -> dict:
-        """Points are absolute; corners are rounded, as in figure_2_1."""
+        """Points are absolute; corners are rounded, as in figure 1."""
         x0, y0 = points[0]
         relative = [[round(x - x0, 2), round(y - y0, 2)] for x, y in points]
         xs = [p[0] for p in relative]

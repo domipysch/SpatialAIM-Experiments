@@ -1,10 +1,14 @@
 # Builds the perturbed reference for Results 2.2 (robustness).
 #
-# Pair 0: scRNA 01_mouse-ssp (5665 x 45768) x ST 01_mouse-ssp (osmFISH, 4839 x 33).
+# Pair 1: scRNA 01_mouse-ssp (5665 x 45768) x ST 01_mouse-ssp (osmFISH, 4839 x 33),
+# from Data/01_Datasets_Paper; writes Data/01_Datasets_Paper/Robustness/{split.h5ad,
+# manifest.json}. Fully seeded: a re-run reproduces the same file.
 # The perturbation touches the reference only; the slice is untouched, so the
 # correct behaviour is known a priori.
 #
-#   split.h5ad      obs["cellType_split"]  4 types
+#   split.h5ad      the reference with obs["cellType_split"] (4 types) added
+#   manifest.json   the halves' sizes, their panel centroid cosine (quoted in the
+#                   methods), and which marker was written into which gene
 #       Glutamatergic is halved into _A / _B by pairing each cell with its
 #       nearest neighbour in panel space and sending one of each pair to each
 #       half, so the two halves are alike in everything the slice measures. The
@@ -15,7 +19,7 @@
 #       Everything here uses the coarse cellType annotation only.
 #
 # Usage:
-#   & ".../spatialaim_env/python.exe" perturb.py
+#   & ".../spatialaim_env/python.exe" 00_perturb.py
 
 import json
 import logging
@@ -56,7 +60,7 @@ def matched_halves(
     panel_counts: np.ndarray,
     target: np.ndarray,
     rng: np.random.Generator,
-) -> tuple[np.ndarray, np.ndarray, dict]:
+) -> tuple[np.ndarray, np.ndarray, float]:
     """Halve ``target`` into two panel-matched halves.
 
     Each target cell is paired with its nearest unpaired neighbour in raw panel
@@ -100,22 +104,10 @@ def matched_halves(
         else:
             b = np.append(b, odd)
 
-    within = np.linalg.norm(G[pair_idx[:, 0]] - G[pair_idx[:, 1]], axis=1)
-    shuffled = rng.permutation(n)
-    across = np.linalg.norm(G[shuffled[: len(pair_idx)]] - G[shuffled[-len(pair_idx):]], axis=1)
+    # how alike the halves look to the slice: cosine of their panel centroids
     ca, cb = G[a].mean(0), G[b].mean(0)
-    sem = np.sqrt(2) * G.std(0) / np.sqrt(n // 2)  # sd of a coin-flip half-mean difference
-    stats = {
-        "n_pairs": int(len(pair_idx)),
-        "n_unpairable": int(len(left)),
-        "median_within_pair_distance": float(np.median(within)),
-        "median_random_pair_distance": float(np.median(across)),
-        "panel_centroid_cosine": float(ca @ cb / (np.linalg.norm(ca) * np.linalg.norm(cb))),
-        "max_gene_imbalance_in_coinflip_sd": float(
-            np.max(np.abs(ca - cb) / np.where(sem > 0, sem, np.inf))
-        ),
-    }
-    return np.sort(target[a]), np.sort(target[b]), stats
+    cosine = float(ca @ cb / (np.linalg.norm(ca) * np.linalg.norm(cb)))
+    return np.sort(target[a]), np.sort(target[b]), cosine
 
 
 def pick_recipient_genes(
@@ -191,13 +183,9 @@ def build_split(sc: ad.AnnData, panel: set[str]) -> tuple[ad.AnnData, dict]:
     panel_counts = np.asarray(sc[:, panel_cols].X, dtype=float)
 
     logger.info("Pairing %s cells in panel space ...", SPLIT_TARGET)
-    idx_a, idx_b, pairing = matched_halves(panel_counts, target, rng_split)
-    logger.info("Splitting %s: %d -> A %d / B %d", SPLIT_TARGET, len(target), len(idx_a), len(idx_b))
-    logger.info("  %d pairs, %d unpairable; within-pair distance %.1f vs %.1f for random pairs",
-                pairing["n_pairs"], pairing["n_unpairable"],
-                pairing["median_within_pair_distance"], pairing["median_random_pair_distance"])
-    logger.info("  panel centroid cosine A vs B %.7f; largest per-gene imbalance %.2f coin-flip sd",
-                pairing["panel_centroid_cosine"], pairing["max_gene_imbalance_in_coinflip_sd"])
+    idx_a, idx_b, cosine = matched_halves(panel_counts, target, rng_split)
+    logger.info("Splitting %s: %d -> A %d / B %d; panel centroid cosine A vs B %.7f",
+                SPLIT_TARGET, len(target), len(idx_a), len(idx_b), cosine)
 
     logger.info("Choosing recipient genes ...")
     recipients = pick_recipient_genes(X, sc.var_names, panel, target, rng_genes, N_MARKER_GENES)
@@ -214,17 +202,8 @@ def build_split(sc: ad.AnnData, panel: set[str]) -> tuple[ad.AnnData, dict]:
         pool = X[target, d_col]  # the donor's counts inside the type being split
         drawn = rng_write.choice(pool, size=len(idx_b), replace=True)
         drawn = np.rint(drawn * rng_write.lognormal(0.0, NOISE_SIGMA, size=len(idx_b)))
-        before = float(X[idx_b, r_col].mean())
         X[idx_b, r_col] = np.maximum(drawn, 0.0).astype(np.float32)
-        pairs.append(
-            {
-                "recipient": recipient,
-                "recipient_mean_counts_before": before,
-                "donor": donor_gene,
-                "donor_mean_counts": float(pool.mean()),
-                "written_mean_counts": float(drawn.mean()),
-            }
-        )
+        pairs.append({"recipient": recipient, "donor": donor_gene})
 
     new_labels = labels.copy()
     new_labels[idx_a] = f"{SPLIT_TARGET}_A"
@@ -232,70 +211,31 @@ def build_split(sc: ad.AnnData, panel: set[str]) -> tuple[ad.AnnData, dict]:
 
     obs = sc.obs.copy()
     obs[SPLIT_KEY] = pd.Categorical(new_labels)
-    half_col = np.array([""] * sc.n_obs, dtype=object)
-    half_col[idx_a] = "A"
-    half_col[idx_b] = "B"
-    obs["split_half"] = pd.Categorical(half_col)
 
     out = ad.AnnData(X=X, obs=obs, var=sc.var.copy())
     meta = {
-        "type": "invisible_split",
+        "sc": SC_PATH.name,
+        "st": ST_PATH.name,
         "target_type": SPLIT_TARGET,
         "seed": SPLIT_SEED,
-        "n_target": int(len(target)),
         "n_a": int(len(idx_a)),
         "n_b": int(len(idx_b)),
-        "n_marker_genes": N_MARKER_GENES,
-        "noise_sigma_lognormal": NOISE_SIGMA,
-        "halving_rule": (
-            f"nearest-neighbour pairing in raw panel space ({PAIRING_NEIGHBOURS} candidate "
-            f"neighbours), one of each pair to each half, orientation by coin flip"
-        ),
-        "pairing": pairing,
-        "recipient_rule": (
-            f"lowest count variance within {SPLIT_TARGET}, among non-panel genes; "
-            f"ties on the cut-off broken by a random draw, seed {SPLIT_SEED}"
-        ),
-        "donor_rule": (
-            f"strongest {SPLIT_TARGET} markers by Wilcoxon AUC vs all other cells, "
-            f"on in >= {MIN_MARKER_DETECTION:.0%} of {SPLIT_TARGET} cells; counts "
-            f"resampled from within {SPLIT_TARGET}"
-        ),
-        "annotation_used": CELL_TYPE_KEY,
+        "panel_centroid_cosine": cosine,
         "gene_pairs": pairs,
-        "annotation_column": SPLIT_KEY,
     }
-    # h5ad cannot store nested/mixed structures in uns -> keep it as JSON text;
-    # manifest.json carries the structured version.
-    out.uns["perturbation"] = json.dumps(meta)
     return out, meta
 
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    manifest_path = OUT_DIR / "manifest.json"
-
-    st = ad.read_h5ad(ST_PATH, backed="r")
-    panel = set(st.var_names)
-    logger.info("Panel: %d genes", len(panel))
-
-    logger.info("Loading %s ...", SC_PATH)
+    panel = set(ad.read_h5ad(ST_PATH, backed="r").var_names)
+    logger.info("Panel: %d genes; loading %s ...", len(panel), SC_PATH)
     sc = ad.read_h5ad(SC_PATH)
-    logger.info("  %d cells x %d genes", sc.n_obs, sc.n_vars)
-
-    manifest: dict = {}
-    manifest["pair"] = {"sc": SC_PATH.name, "st": ST_PATH.name, "shared_genes": len(set(sc.var_names) & panel)}
-    manifest["clean"] = {"path": str(SC_PATH), "annotation_column": CELL_TYPE_KEY}
 
     split, meta = build_split(sc, panel)
-    path = OUT_DIR / "split.h5ad"
-    split.write_h5ad(path)
-    meta["path"] = str(path)
-    manifest["split"] = meta
-    logger.info("Wrote %s", path)
-
-    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    logger.info("Wrote %s", manifest_path)
+    split.write_h5ad(OUT_DIR / "split.h5ad")
+    (OUT_DIR / "manifest.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    logger.info("Wrote %s", OUT_DIR)
 
 
 if __name__ == "__main__":

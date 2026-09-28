@@ -1,15 +1,14 @@
 # Assemble the Results 2.4 figure -- biological and topological plausibility --
 # as an Excalidraw drawing in the Obsidian vault.
 #
-# Same construction as figure_2_2 and figure_2_3: the data panels are the PNGs
+# Same construction as figures 2 and 3: the data panels are the PNGs
 # written by panels.py and embedded by wikilink, so re-running that script
 # updates them in place. This script draws only what makes them readable --
 # letters, headings and the two words naming each sketch half. Anything else
 # belongs in the caption.
 #
-# One mapper per invocation (``--mapper``, default nearest_centroid, the figure
-# the paper prints); every other mapper is assembled from figure_2_4_<mapper>/
-# into figure_2_4_<mapper>.excalidraw.md.
+# One mapper per invocation (``--mapper``, required; all mappers are equal):
+# figure_4/<mapper>/panels/ -> figure_4/<mapper>/figure_4_<mapper>.excalidraw.md.
 #
 # Two rows of three, one row per criterion, and every cell its own panel:
 #
@@ -40,13 +39,7 @@ from spatialaim_experiments.style import MAPPERS, SCALE
 
 logger = logging.getLogger(__name__)
 
-FIGURE = "2_4"
-# the mapper panels.py draws the figure itself with
-FIGURE_MAPPER = "nearest_centroid"
-# set by main() from --mapper; the figure's own mapper keeps the unsuffixed
-# names, every other one gets its copy of the same drawing beside it
-PANELS = paths.panel_dir(FIGURE)
-OUT = paths.drawing(FIGURE)
+FIGURE = "4"
 
 PAD = 14
 # The paper places the figure at its 5.17 in text width, so the drawing is
@@ -91,7 +84,7 @@ ROWS = [
 ]
 
 # set by main(), once --mapper says which figure this is
-drawing = Drawing("f24", PANELS, paths.VAULT)
+drawing: Drawing
 
 
 def text(body: str, x, y, size=FS_HEAD, colour=None, centre=False):
@@ -141,7 +134,7 @@ def build(manifest: dict) -> None:
         # The two words naming the sketch's halves, on the empty strip each rect
         # leaves above it. Scaled by the sketch's own height -- it is shorter
         # than a scatter, so the row height would drift both labels downwards.
-        for label, fraction in zip(manifest["sketch_labels"],
+        for label, fraction in zip(("observed", "chance"),
                                    manifest["sketch_tops"][row["sketch"][1]]):
             text(label, xs[0] + 6,
                  top + fraction * h_sketch - text_size(label, FS_HEAD)[1])
@@ -160,21 +153,18 @@ def build(manifest: dict) -> None:
 
 
 def main() -> None:
-    global PANELS, OUT, drawing
+    global drawing
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--mapper", default=FIGURE_MAPPER, choices=MAPPERS,
-                    help=f"whose panels to assemble (default {FIGURE_MAPPER}, the "
-                         "figure itself)")
+    ap.add_argument("--mapper", required=True, choices=MAPPERS,
+                    help="whose panels to assemble, from figure_4/<mapper>/panels/")
     mapper = ap.parse_args().mapper
-    copy = None if mapper == FIGURE_MAPPER else mapper
-    PANELS = paths.panel_dir(FIGURE, copy)
-    OUT = paths.drawing(FIGURE, copy)
-    drawing = Drawing("f24", PANELS, paths.VAULT)
+    panels = paths.panel_dir(FIGURE, mapper)
+    drawing = Drawing("f24", panels, paths.VAULT)
 
-    manifest = json.loads((PANELS / "panels.json").read_text(encoding="utf-8"))
+    manifest = json.loads((panels / "panels.json").read_text(encoding="utf-8"))
     build(manifest)
     drawing.check()
-    drawing.write(OUT)
+    drawing.write(paths.drawing(FIGURE, mapper))
 
 
 if __name__ == "__main__":

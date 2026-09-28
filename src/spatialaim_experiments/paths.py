@@ -5,8 +5,8 @@ default that matches this workstation and an environment variable that overrides
 it, so the same scripts run on another machine without editing a line:
 
     SPATIALAIM_DATA             the datasets and results tree      (Data/)
+    SPATIALAIM_EXP1             one Experiment 1 result, as pulled (Data/02_Results/experiment1)
     SPATIALAIM_VAULT            the Obsidian vault holding the Excalidraw drawings
-    SPATIALAIM_PAPER            the Overleaf project               (SpatialAIM-Overleaf/)
     SPATIALAIM_EXPERIMENTS_OUT  where previews and caches are written (outputs/)
 
 The results this repository reads are produced by ``spatial-aim`` (the tool
@@ -35,33 +35,26 @@ def _env(name: str, default: Path) -> Path:
 # inputs: the datasets and the results of the sweeps
 # ---------------------------------------------------------------------------
 DATA = _env("SPATIALAIM_DATA", WORKSPACE / "Data")
-DATASETS = DATA / "01_Datasets"
+DATASETS = DATA / "01_Datasets_Paper"
 RESULTS = DATA / "02_Results"
 
-# The 92 pairs the paper uses -- the whole-slice variants of datasets 11 and 12,
-# not the tiled ones. Every aggregation in this repository is restricted to it.
-PAIRS_CSV = DATASETS / "pairs_only_raw_counts_11_12_whole.csv"
+# The paper's 88 pairs (10 references, 1-based PairIDs).
+PAIRS_CSV = DATASETS / "pairs.csv"
 SC_INDEX = DATASETS / "scRNA" / "index.csv"
 ST_INDEX = DATASETS / "ST" / "index.csv"
 
-# the two result trees the figures read
-EXPERIMENT1 = RESULTS / "experiment1"
+# Experiment 1 as pulled from the cluster: its summary/ is all the figures read
+# (experiment1/04_summarize.py). SPATIALAIM_EXP1 points elsewhere, e.g. at the
+# one-pair test.
+EXPERIMENT1 = _env("SPATIALAIM_EXP1", RESULTS / "experiment1")
+EXP1_SUMMARY = EXPERIMENT1 / "summary"
 ROBUSTNESS = RESULTS / "robustness"
 
 # ---------------------------------------------------------------------------
-# outputs: the drawings in the vault, the PDFs in the paper, previews here
+# outputs: the drawings in the vault, previews here
 # ---------------------------------------------------------------------------
 VAULT = _env("SPATIALAIM_VAULT", Path(r"C:\Users\zi69hebi\Dev\00_Obsidian"))
 EXCALIDRAW = VAULT / "Excalidraw"
-# The Overleaf checkout was called AIM-Overleaf before the rename to SpatialAIM.
-# Either name works, so a machine that has not renamed its folder yet still
-# resolves; SPATIALAIM_PAPER overrides both.
-_PAPER_NAMES = ("SpatialAIM-Overleaf", "AIM-Overleaf")
-PAPER = _env("SPATIALAIM_PAPER",
-             next((WORKSPACE / name for name in _PAPER_NAMES
-                   if (WORKSPACE / name).exists()),
-                  WORKSPACE / _PAPER_NAMES[0]))
-PAPER_FIGURES = PAPER / "figures"
 OUTPUTS = _env("SPATIALAIM_EXPERIMENTS_OUT", REPO / "outputs")
 
 
@@ -77,24 +70,28 @@ def outputs(section: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# one figure, by its number in the paper ("2_2"), optionally per mapper
+# one results figure, by its number ("2" for Fig. 2.2), optionally per mapper;
+# one folder per figure in the vault, a mapper's copy in a subfolder of it:
+#
+#   Excalidraw/figure_2/figure_2.excalidraw.md        the drawing
+#   Excalidraw/figure_2/panels/                        the PNGs it embeds
+#   Excalidraw/figure_2/dot/figure_2_dot.excalidraw.md the same figure for DOT
+#   Excalidraw/figure_2/dot/panels/
 # ---------------------------------------------------------------------------
 
-def _stem(figure: str, mapper: str | None) -> str:
-    return f"figure_{figure}" if mapper is None else f"figure_{figure}_{mapper}"
+def figure_dir(figure: str, mapper: str | None = None) -> Path:
+    """A figure's folder in the vault, or its mapper copy's subfolder."""
+    folder = EXCALIDRAW / f"figure_{figure}"
+    return folder if mapper is None else folder / mapper
 
 
 def panel_dir(figure: str, mapper: str | None = None) -> Path:
     """Where a figure's panel PNGs go, next to the drawing that embeds them."""
-    return EXCALIDRAW / _stem(figure, mapper)
+    return figure_dir(figure, mapper) / "panels"
 
 
 def drawing(figure: str, mapper: str | None = None) -> Path:
     """The Excalidraw document assembled from those panels."""
-    return EXCALIDRAW / f"{_stem(figure, mapper)}.excalidraw.md"
+    stem = f"figure_{figure}" if mapper is None else f"figure_{figure}_{mapper}"
+    return figure_dir(figure, mapper) / f"{stem}.excalidraw.md"
 
-
-def figure_pdf(figure: str, mapper: str | None = None) -> Path:
-    """Where the paper includes the rendered figure from."""
-    suffix = figure if mapper is None else f"{figure}_{mapper}"
-    return PAPER_FIGURES / f"fig_{suffix}.pdf"

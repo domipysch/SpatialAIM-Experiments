@@ -1,61 +1,46 @@
 # Section 02 — SpatialAIM is independent of the annotation's granularity (Fig. 2.2)
 
-Two experiments on **pair 0** (scRNA `01_mouse-ssp` × osmFISH `01_mouse-ssp`,
-4839 cells, 33 genes, all shared), both with average linkage:
-
-| | start clusters | what it asks |
-|---|---|---|
-| invisible split | the annotation, perturbed | an annotation **finer** than the panel can resolve — does SpatialAIM merge the phantom split back? |
-| granularity | the default Leiden over-clustering | an annotation **coarser** than the panel supports — what does SpatialAIM propose instead? |
-
-The slice is never touched, so the correct behaviour is known in advance.
-
 ## Running it
 
-```powershell
-# 1. build the perturbed reference (once) -> Data/01_Datasets/Robustness/split.h5ad
-python perturb.py
+Three steps: build the perturbed reference, run every mapper on the original and the perturbed
+reference, draw the figure from those runs. Inputs are `Data/01_Datasets_Paper`; run from this
+folder in PowerShell.
 
-# 2. the sweeps, per mapper; skips whatever already has a k_selection.json
-powershell -File run_robustness.ps1 -Mapper tangram
-powershell -File run_robustness.ps1 -Mapper dot -Only granularity
+```powershell
+$E = "C:\Users\zi69hebi\AppData\Local\miniforge3\envs\spatialaim_env"
+$env:PATH = "$E;$E\Library\mingw-w64\bin;$E\Library\usr\bin;$E\Library\bin;$E\Scripts;$E\bin;$env:PATH"
+
+# 1. the perturbed reference (once; seeded, so a re-run gives the same file)
+#    -> Data/01_Datasets_Paper/Robustness/{split.h5ad, manifest.json}
+& "$E\python.exe" 00_perturb.py
+
+# 2. the sweeps: 3 runs per mapper (below), all five mappers; skips every run that
+#    already has a k_selection.json, so an interrupted call just continues
+powershell -File 01_run_robustness_experiments.ps1 -All
 
 # 3. the figure, per mapper (analysis -> panels -> drawing -> PDF)
-powershell -File make_figures.ps1 -Mapper tangram
-powershell -File make_figures.ps1 -All
+powershell -File 02_make_figures.ps1 -All
 ```
 
-Results land in `Data/02_Results/robustness/{invisible_split,granularity}/<run>/<mapper>/`.
-Reference aligners cost one `conda run` per K: the invisible-split runs are 3–4 K
-levels (about a minute), the 44-level over-clustering sweep is ~18 minutes for DOT.
+The three runs of step 2, all average linkage:
+
+| run | reference | start clusters | K |
+|---|---|---|---|
+| `original_annotation` | `01_mouse-ssp` | annotation `cellType` (3 types); the unperturbed side of the invisible split and the annotation side of the granularity half | 3..1 |
+| `invisible_split` | `Robustness/split.h5ad` | annotation `cellType_split` (4 types) | 4..1 |
+| `original_leiden_overcluster` | `01_mouse-ssp` | Leiden over-clustering | L..1 |
+
+Results land in `Data/02_Results/robustness/<run>/<mapper>/`, 
+the analysis numbers in `Data/02_Results/robustness/_analysis/<mapper>/`. 
 
 ## The scripts
 
 | File | What it does |
 |------|--------------|
-| `perturb.py` | halves Glutamatergic into `_A`/`_B` by nearest neighbour in panel space, then rewrites ten silent non-panel genes in the B half only. The 33 shared genes are never touched, so the split is invisible to the slice. |
-| `run_robustness.ps1` | both experiments for one mapper, resumable, ledger in `_logs/` |
-| `analyse_invisible_split.py` | the numbers the text quotes → `invisible_split/_analysis/<mapper>/{results.json,metrics.csv}`: how invisible the split is, what the mapper does with it at K=4, and whether K=3 reproduces the unperturbed map |
-| `plot_invisible_split.py` | the first half's data access (run directories, spot→type, palette) **and** a standalone version of that half's figure |
-| `plot_granularity.py` | the same for the second half: state composition against the fine annotation, the criterion curves |
-| `panels.py` | the nine panels of the assembled figure + `panels.json` |
-| `make_excalidraw.py` | the drawing: letters, headings, the four arrows, three legends |
+| `00_perturb.py` | halves Glutamatergic into `_A`/`_B` by nearest neighbour in panel space, then rewrites ten silent non-panel genes in the B half only. The 33 shared genes are never touched, so the split is invisible to the slice. → `Robustness/split.h5ad` + `manifest.json` (half sizes, panel centroid cosine, gene pairs) |
+| `01_run_robustness_experiments.ps1` | the three sweeps for one mapper (`-Mapper`) or all (`-All`); skips finished runs, one log per run in `_logs/` |
+| `02_make_figures.ps1` | runs 02a → 02b → 02c, per mapper (`-Mapper <name>` or `-All`) |
+| `02a_analyse_invisible_split.py` | from the `invisible_split` run → `robustness/_analysis/<mapper>/results.json`: the spot share of each phantom half at K=4 (quoted in the text), plus SpatialAIM's proposed K and the score curves that `02b_panels.py` draws |
+| `02b_panels.py` | the nine panels of the assembled figure + `panels.json` → `Data/02_Results/robustness/plots/<mapper>/`, copied into the vault folder the drawing embeds (`Excalidraw/figure_2/<mapper>/panels/`); also holds the run access (spot → type/state per K), the palette and the fine-annotation reading of the over-clustering states |
+| `02c_make_excalidraw.py` | the drawing: letters, headings, the four arrows, three legends |
 
-The two `plot_*.py` scripts are imported by `panels.py` for their loaders and
-colours; their own `main()` draws the older standalone figure that the assembled
-one superseded. It is still a one-command look at the same data.
-
-## Per mapper
-
-Every script takes `--mapper` (default `tangram`, the figure the paper prints).
-Any other mapper writes to `figure_2_2_<mapper>/` and
-`figure_2_2_<mapper>.excalidraw.md`, so a copy can never overwrite the figure.
-
-What the copies showed (September 2026):
-
-* every mapper re-merges the invisible split at K=3 — **except DOT**, which
-  proposes K=4 on every criterion, i.e. keeps the phantom split. Panel (g)'s
-  heading follows the proposal, so the DOT copy reads "Split halves kept".
-* "the division carries no spatial structure" is Tangram-specific. Nearest
-  centroid divides the tissue into visible bands (local purity z = 48), DOT gives
-  one half 71 % of the spots (z = 24), WANN and TACCO are mildly structured.

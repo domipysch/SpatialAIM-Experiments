@@ -1,7 +1,7 @@
 # Assemble the Results 2.3 reconstruction figure as an Excalidraw drawing in the
 # Obsidian vault.
 #
-# Same construction as figure_2_2: the data panels are the PNGs written by
+# Same construction as figure 2: the data panels are the PNGs written by
 # panels.py and embedded by wikilink, so re-running that script updates them in
 # place. This script draws only what makes them readable -- panel letters,
 # headings and the legends. Anything else belongs in the caption.
@@ -23,10 +23,12 @@ import logging
 
 from spatialaim_experiments import paths
 from spatialaim_experiments.excalidraw import WIDTH, Drawing, advance, text_size
+from spatialaim_experiments.style import (HEAT_AXES, MAPPER_COLOURS, MAPPER_LABELS, MAPPERS,
+                                          TREE_LABELS, TREES)
 
 logger = logging.getLogger(__name__)
 
-FIGURE = "2_3"
+FIGURE = "3"
 PANELS = paths.panel_dir(FIGURE)
 OUT = paths.drawing(FIGURE)
 
@@ -42,7 +44,7 @@ FS_ROW = 30           # the per-row linkage labels, smaller than the mapper name
 # label and never wraps it.
 ROW_LABEL_W = sum(advance(c) for c in "ward") * FS_ROW
 # The mapper swatch: a rounded vertical bar. In row (a) it is drawn at the height
-# of the two heat-map rows the mapper occupies, taken from the manifest, so the
+# of the two heat-map rows the mapper occupies, so the
 # five bars tile the column edge to edge with no gaps between them. In the key it
 # is one line of FS_LEG instead, which sits flush with its label.
 MARK_W, MARK_H = 16, 48
@@ -100,7 +102,6 @@ def legend_row(x: float, y: float, entries, gap: float = 34) -> float:
 
 def build(manifest: dict) -> None:
     panels = manifest["panels"]
-    legends = manifest["legends"]
 
     def size(name: str) -> tuple[float, float]:
         return panels[name]["w"], panels[name]["h"]
@@ -123,7 +124,7 @@ def build(manifest: dict) -> None:
     # ---------------- the key ------------------------------------------------
     # Which colour is which mapper, said once, at the top: both rows use the five
     # colours, so the reader needs them before panel (a), not after panel (b).
-    legend_row(PAD, ROW_TOP, [(e["label"], e["colour"]) for e in legends["mappers"]])
+    legend_row(PAD, ROW_TOP, [(MAPPER_LABELS[m], MAPPER_COLOURS[m]) for m in MAPPERS])
 
     # ---------------- row 1: the corpus --------------------------------------
     # Three heat maps of identical geometry. Their columns are labelled inside
@@ -142,18 +143,20 @@ def build(manifest: dict) -> None:
     # bar in the mapper's colour. The bar rather than the name, because the key
     # already spells the five out and repeating them here cost more width than
     # the heat maps could spare.
-    for tree, y in zip(manifest["trees"] * 5, manifest["heat_row_lines"]):
+    # The heat map's rows (mapper x tree, mapper by mapper) split HEAT_AXES evenly;
+    # HEAT_AXES counts from the image's bottom, the canvas from its top (row1).
+    _, bottom, _, height = HEAT_AXES
+    row_h = height * h_heat / (len(MAPPERS) * len(TREES))
+    rows_top = row1 + (1 - bottom - height) * h_heat
+    for i in range(len(MAPPERS) * len(TREES)):
+        tree = TREE_LABELS[TREES[i % len(TREES)]]
         h = text_size(tree, FS_ROW)[1]
-        text(tree, heat_x - 12, row1 + y * h_heat - h / 2, size=FS_ROW,
+        text(tree, heat_x - 12, rows_top + (i + 0.5) * row_h - h / 2, size=FS_ROW,
              align="right", box=ROW_LABEL_W)
-
-    # The pair of rows one mapper owns, in canvas units: the heat map's rows are
-    # evenly spaced, so two of them are twice the spacing of the row centre lines.
-    lines = manifest["heat_row_lines"]
-    pair_h = 2 * (lines[1] - lines[0]) * h_heat
     mark_x = heat_x - 12 - ROW_LABEL_W - 16 - MARK_W / 2
-    for entry, y in zip(legends["mappers"], manifest["heat_rows"]):
-        bar(mark_x, row1 + y * h_heat, MARK_W, pair_h, entry["colour"])
+    pair_h = len(TREES) * row_h
+    for i, mapper in enumerate(MAPPERS):
+        bar(mark_x, rows_top + (i + 0.5) * pair_h, MARK_W, pair_h, MAPPER_COLOURS[mapper])
 
     # ---------------- row 2: the mappers -------------------------------------
     row2 = row1 + h_heat + ROW_GAP + LETTER_DROP

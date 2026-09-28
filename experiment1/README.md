@@ -1,216 +1,284 @@
-# Experiment 1 on the server — install + run everything
+# Experiment 1 — on NHR@FAU TinyFat
 
-The prerequisite sweep for the whole paper: every pair × start mode × linkage ×
-mapper, one `spatialaim run` each, ~2630 run roots. Sections 03 and 04 read nothing but
-the metrics it collects; section 02 has its own small runs instead.
-
-These scripts are self-contained — they install `spatial-aim` from TestPyPI on
-the server and import nothing from this repository, so they are copied over as
-they are.
-
-Two scripts, no repository needed on the server:
-
-| File | What it does |
-|------|--------------|
-| `01_setup_envs.sh` | creates all four envs — `spatialaim_env` (with `spatial-aim` from **TestPyPI**) plus `tangram_env`, `tacco_env`, `dot_env` from the env specs shipped inside the wheel — then verifies each aligner env can run its wrapper |
-| `02_run_experiment1.sh` | enumerates the whole grid and runs it across `WORKERS` shell workers; resumable, logged |
-| `04_write_k_selection.py` | recomputes the missing `k_selection.json` per run root from `k_comparison.csv` alone, and reports truncated tables |
-| `05_collect_metrics.sh` | tars the three small files per run root (~50 MB) for transfer back |
-
-> `03_progress.sh`, the read-only progress report referred to below, was never
-> copied back from the server and is not in this repository.
-
-Once the archives are extracted into `Data/02_Results/experiment1`, everything
-downstream goes through `spatialaim_experiments.exp1`, which reduces each run root to
-two rows (SpatialAIM's proposal, the annotation baseline) and caches the table in
-`outputs/experiment1/runs.csv`.
-
-## 0. Copy them over
-
-```bash
-scp -r aim_experiment1 <server>:/data/bionets/zi69hebi/Alignment/
-```
-
-## 1. Install
-
-```bash
-bash /data/bionets/zi69hebi/Alignment/aim_experiment1/01_setup_envs.sh
-```
-
-* **Nothing is ever deleted.** The script does not remove conda envs and never touches a results
-  directory, so the finished `nearest_centroid` / `wann` sweeps stay where they are. An env that
-  already exists is reused as-is — `conda env remove -n <env>` yourself to force a rebuild, or use
-  `ONLY=tangram_env` to build a single env.
-* `spatialaim_env`: dependencies come from real PyPI, then `spatial-aim` from TestPyPI with `--no-deps`, so a
-  TestPyPI mirror of a dependency can never be picked up by accident. Pin with
-  `SPATIALAIM_VERSION=0.1.4 bash 01_setup_envs.sh`.
-* The aligner envs get **only their own aligner** — no `spatial-aim`. SpatialAIM runs their wrapper scripts
-  by path (`conda run -n tangram_env python …/run_tangram.py …`), and those wrappers import nothing
-  from `spatialaim`. `dot_env` additionally gets the DOT R package from GitHub (`SKIP_DOT_R=1` to skip).
-* pandas is pinned `<3` in `spatialaim_env`: with pandas' new string default, SpatialAIM's own h5ad writes
-  (`src/spatialaim/io.py`) would hit anndata's nullable-string guard the way the aligner wrappers did. The
-  wrappers are fixed; `io.py` is not yet.
-* The last step prints `available: [...]` — all of `tangram`, `tacco`, `dot` must be listed — and then
-  checks that each aligner env can actually execute its wrapper script. If conda is not on `PATH`
-  inside the run shell, `export CONDA_EXE=...`.
-
-## 2. Preflight (no compute)
-
-```bash
-DRY_RUN=1 bash /data/bionets/zi69hebi/Alignment/aim_experiment1/02_run_experiment1.sh
-```
-
-Prints the grid size, the start modes per reference, and checks that every annotation column really
-exists in the corresponding `scRNA/*.h5ad` (reads only the `obs` column names, never the matrix).
-
-## 3. Run in tmux
-
-```bash
-tmux new -s aim1 -d 'WORKERS=8 bash /data/bionets/zi69hebi/Alignment/aim_experiment1/02_run_experiment1.sh'
-tmux attach -t aim1
-```
-
-Console lines are prefixed `[w<worker> <stage> g<group>/<total>]`. Progress:
-
-```bash
-tail -f /data/bionets/zi69hebi/Alignment/02_Results/experiment1/_logs/ledger.csv
-```
-
-Stop it: `Ctrl-C` in the session (the script terminates its workers and the `spatialaim` process each one is
-running, then tells you to re-run to resume). If the parent gets killed hard instead, workers survive
-as orphans — `pkill -f 'spatialaim run --scdata'` clears them. Either way nothing is corrupted: re-running
-skips every sweep that already has a `k_comparison.csv`.
-
-### How the work is split
-
-All parallelism is in the shell script; SpatialAIM itself runs exactly as it does single-threaded. The split
-is decided **before anything starts** and never revisited — there is no claiming, locking or other
-coordination while the run is going.
-
-* **Unit of work ("group") = one (pair, start mode)**, carrying both trees. A group maps 1:1 onto the
-  directory `<start_tag>/<PairID>_<sc>__<st>/`, so two different groups can never touch the same
-  directory. That is what makes the reference-scaffold cache safe: built once per group, then
-  hardlinked from `ward` into `average`.
-* **The group list is deduplicated** (a repeated `pairs.csv` row would otherwise become two work items
-  pointing at one run root — it is reported as `WARNING: duplicate group … ignored`) and then **dealt
-  out to the workers up front**, greedy longest-processing-time-first on
-  `CellCount × SpotCount` from the index CSVs (annotation modes discounted, since they have far fewer K
-  levels). Each worker gets `_logs/work/worker_<n>.tsv` and reads only that file, in every stage.
-  The startup banner prints each worker's share, e.g. with `WORKERS=8`: one worker gets the single
-  huge `11_human-breast-cancer` full-section group (≈18 % of the estimated load) and the other seven
-  get 44–47 groups each (≈11.7 % apiece).
-* **One stage per mapper**, in `MAPPINGS` order, with a barrier between stages: the two cheap
-  in-process mappers finish across the entire grid first, and every later stage reads the scaffold
-  cache the first stage wrote rather than building its own.
-* **Only one run at a time per output + shard.** The script records its PID in
-  `_logs/.running.shard<i>of<n>.pid` and refuses to start while that process is alive — a second
-  invocation would otherwise repeat the first one's sweeps into the same run roots. A leftover file
-  from a killed run is detected as stale and replaced. `FORCE=1` overrides it (use it for two shards
-  on the same host).
-
-`WORKERS=N` also splits the thread budget: `OMP_NUM_THREADS` defaults to `nproc / WORKERS`. Size `N`
-by **RAM**, not by cores — every worker holds its own scRNA + ST AnnData.
-
-For several machines, combine with the shard filter (disjoint by `PairID`, so shards never touch the
-same group):
-
-```bash
-SHARD_COUNT=3 SHARD_INDEX=0 WORKERS=8 bash 02_run_experiment1.sh   # on host 1, etc.
-```
+Every pair of `Data/01_Datasets_Paper/pairs.csv` × every start mode × both linkages × all five
+mappers, through the `spatialaim` CLI, with **wall time and peak memory measured per run** by the
+runner (SpatialAIM itself is not touched). Sections 03 and 04 read the pulled summary.
 
 ## The grid
 
-* **Pairs**: every row of `pairs_only_raw_counts.csv` (120 pairs; 10 of the 12 references —
-  `06_mouse-hypothalamic` and `08_mouse-mop` do not appear in that subset).
-* **Start clusters**: Leiden over-clustering (`--leiden_resolution 3.0`) **plus** every cell-type
-  annotation the pair's reference has, taken from `scRNA/index.csv` `CellTypeKey0/1/2`
-  (2 keys for 01, 03, 04, 07, 10; 1 key for 02, 05, 09, 11, 12) → **321 groups**.
-* **Tree**: `ward`, `average`.
-* **Mapper**: `nearest_centroid`, `wann`, `tangram`, `tacco`, `dot`.
+| | |
+|---|---|
+| start modes | `leiden_res3.0` + `ann_<key>` for every `CellTypeKey*` of the reference → 88 + 164 = **252 (pair, start) units** |
+| stage A — TinyFat | one reference-scaffold build per unit (252) |
+| stage B — TinyFat | {ward, average} × {nearest_centroid, wann, tacco, dot, tangram} per unit (2520); Tangram on CPU |
+| K | full sweep, step 1; Leiden resolution 3.0 in both modes |
 
-**321 × 2 × 5 = 3210 sweeps**, each a full K sweep (K = number of start clusters down to 1).
+**Why two stages.** The reference scaffold (start clusters, shared-gene Leiden, aggregates, both
+UMAPs) depends on the pair, the resolution and the start mode, not on the linkage or the mapper. Stage
+A builds it once per unit (`nearest_centroid` at K = 1, everything but the scaffold discarded);
+each stage-B run copies it into its own fresh output dir, so its time and memory are the sweep
+alone. `run_one.py` checks every stage-B log for `Reusing cached reference scaffold`. The summary
+carries both parts, so the full cost of a configuration is `wall_s + scaffold_build_s`.
 
-Batch mode (`spatialaim run --pairs_csv`) is deliberately not used: `--start_from_annotation` differs per
-scRNA reference, and every start mode / tree combination needs its own output root.
+**Measurement** (`run_one.py`, per run → `resources.json`):
+- wall time, user and system CPU time;
+- peak RSS summed over the whole process tree, sampled every 0.5 s, including the `conda run`
+  aligner children; also the largest single process and the children alone;
+- host, CPU model, GPU name, thread count, memory limit, job ids and the spatialaim version.
 
-## Output layout
+Every job gets 8 physical cores and 64 GB, and OMP/MKL/OpenBLAS/numba are pinned to 8 threads.
+All mappers run on the same hardware (TinyFat `work`, AMD EPYC 7502), so their timings compare
+directly. Tangram runs on CPU: GPU jobs on TinyGPU were rarely scheduled, and `run_tangram.py`
+falls back to `cpu` when no GPU is visible. State that in the paper (Tangram is usually run on a
+GPU).
+
+**Caveat on the timings.** TinyFat `work` nodes are shared: cores are exclusive, memory bandwidth
+is not.
+
+**Jobs.** The grid is fixed up front in `units.tsv` (checked in, written by `grid.py`): line i
+is unit i, and i is the Slurm array index of every job on that unit.
+
+| array | one job = | jobs | runs per job |
+|---|---|---|---|
+| `01_scaffolds.tinyfat.sbatch` | one unit's scaffold | 252 | 1 |
+| `02_map.tinyfat.sbatch <mapper>`, once per mapper | (unit, mapper): ward, then average | 5 × 252 | 2 |
+
+The slowest run of the first round was a 7.3 h DOT sweep, so two fit the 24 h limit. Units are
+ordered by PairID; units 0–2 are pair 1 (`01_mouse-ssp`), which the one-pair test runs.
+
+**Resume.** Every run is idempotent: a `DONE` marker means skip, a `FAILED` marker means retry.
+Anything killed by the time limit simply has no marker. Nothing is ever deleted except a run's own
+scratch.
+
+## Files
+
+| File | Role |
+|---|---|
+| `00_setup_server.sh` | clone SpatialAIM-Repository at the pinned commit; create `spatialaim_env`, `tangram_env`, `tacco_env`, `dot_env` (+ DOTr); `check` mode runs smoke checks |
+| `01_scaffolds.tinyfat.sbatch`, `02_map.tinyfat.sbatch` | the arrays; first argument `run` or `test` (the run root), then (stage B) the mapper |
+| `03_status.py` | done / failed / missing per stage and mapper, cache misses, OOM suspects, and the `sbatch --array=…` lines that resubmit what is unfinished |
+| `04_summarize.py` | → `summary/` (below) |
+| `05a_run_k.py`, `05a_run_k.tinyfat.sbatch`, `05b_merge_k.py` | only for DOT on unit 248 (pair 87, breast cancer, Leiden start), which does not fit 24 h: one job per K, then merged into the normal run folder (step 5b) |
+| *helpers, not run by hand* | |
+| `config.sh` | shared settings, sourced by everything: `$WORK/spatialaim_exp1` layout, conda in `$WORK`, proxy, caches off `$HOME`, thread pinning |
+| `units.tsv`, `grid.py` | the 252 units and the walltimes; `python grid.py array leiden\|annotation [--test]` prints an `--array` list; `python grid.py units` rewrites `units.tsv` (only if the datasets change) |
+| `run_one.py` | the measured runner: `run_one.py A <unit>` or `run_one.py B <unit> <mapper>` |
+| `run_job.sh` | body of every array task |
+
+## On the cluster
 
 ```
-02_Results/experiment1/
-├── leiden_res3.0/<PairID>_<scName>__<stName>/{ward,average}/<mapper>/k_<kkk>/…
-├── ann_<obs_column>/<PairID>_<scName>__<stName>/{ward,average}/<mapper>/k_<kkk>/…
-└── _logs/
-    ├── ledger.csv                        # one row per sweep: status, seconds, run root
-    ├── work/groups_assigned.tsv          # the whole split, worker id in column 1
-    ├── work/worker_<n>.tsv               # what worker n runs, in order
-    ├── .running.shard0of1.pid            # PID of the active run (removed on exit)
-    └── <start_tag>/<pair>/<tree>/<mapper>.log
+$WORK/spatialaim_exp1/
+├── code/SpatialAIM-Repository/     pinned clone (installed non-editable into spatialaim_env)
+├── code/experiment1/               this folder; submit from here
+│   └── logs/                       Slurm output, <job name>_<array job>_<unit>.out
+├── data/01_Datasets_Paper/         read in place by both stages - never move or re-copy between A and B
+├── envs/  conda_pkgs/  cache/
+├── test/                           run root of the one-pair test
+└── run/                            run root of the full grid
+    ├── scaffolds/<PID>_<sc>__<st>/<start_tag>/    reference_scaffold.{h5ad,meta.json}, resources.json, run.log, DONE
+    ├── results/<PID>_<sc>__<st>/<start_tag>/<tree>/<mapper>/
+    │       config.yaml, k_comparison.csv, k_selection.json,
+    │       k_levels.zip  (every k_<kkk>/ file except the per-spot ones: tree cut, analysis/data JSONs,
+    │                      per-gene cossim; read with Python's zipfile, no need to unpack),
+    │       run.log, resources.json, DONE | FAILED
+    ├── logs/       ledger.tsv (one line per run)
+    └── summary/
 ```
 
-A run root is named after the mapper alone, so the start mode and the tree method have to be
-directory levels above it — that is exactly what `<start_tag>/…/<tree>/` provides. Point `spatialaim gui`
-at any `…/<tree>/` folder and it sees all five mappers side by side.
+The scaffolds take roughly 1–2 GB each for the large references, so tens of GB in total; the
+results are small. `$WORK` gives 1 TB.
 
-## Knobs
+## Step by step
 
-| Env var | Default | Notes |
-|---------|---------|-------|
-| `WORKERS` | `1` | parallel sweeps; `1` = plain sequential |
-| `MAPPINGS` | `nearest_centroid wann tangram tacco dot` | also the stage order |
-| `TREES` | `ward average` | |
-| `START_MODES` | `leiden annotation` | drop one to run only the other |
-| `LEIDEN_RES` | `3.0` | part of the `leiden_res*` folder name |
-| `K_MIN` / `K_MAX` / `K_STEP` | unset → full sweep, step 1 | see the runtime note below |
-| `ORDER` | `lpt` | weighted greedy split; `file` = `pairs.csv` order, dealt round-robin |
-| `FORCE` | `0` | start although another run for this output + shard is alive |
-| `OMP_NUM_THREADS` | `nproc / WORKERS` | also sets OPENBLAS/MKL/NUMBA |
-| `JOB_TIMEOUT` | unset | e.g. `12h`, kills a single hanging sweep and moves on |
-| `SHARD_COUNT` / `SHARD_INDEX` | `1` / `0` | across machines, by `PairID` |
-| `PRUNE_SCAFFOLD` | `0` | delete `reference_scaffold.h5ad` after a group's last mapper stage |
-| `LINK_SCAFFOLD` | `1` | hardlink the ward scaffold cache into the average cell |
-| `DRY_RUN` | `0` | enumerate + check annotations only |
-| `CACHE_ROOT` / `CONFIG_ROOT` | `<DATA_ROOT>/../.cache` / `.config` | matplotlib/numba/XDG caches, kept off `$HOME` |
-| `OUT_ROOT`, `DATA_ROOT`, `PAIRS_CSV`, `SPATIALAIM_ENV` | server defaults | |
+Placeholders: `<user>` is your HPC account, and `<WORK>` is what `echo $WORK` prints on tinyx
+(e.g. `/home/woody/<group>/<user>`). Local commands are PowerShell; cluster commands are bash on
+tinyx.
 
-## Fixed since the first run
+### 0. SSH (once, local)
 
-**Nothing writes to `$HOME` any more.** The 2026-08-12 tangram run lost 582 of 634 sweeps to this:
-the home directory went unwritable at 22:54 and from that minute on every `conda run -n tangram_env`
-died before Python started (`An unexpected error has occurred`, because conda writes into
-`~/.conda`), surfacing as `RuntimeError: tangram aligner failed (exit 1)` at the sweep's first K.
-matplotlib hit the same wall one line earlier and only warned — `Permission denied:
-'/home/…/.config/matplotlib'` is the fingerprint in the logs. Both scripts now export
-`MPLCONFIGDIR` / `XDG_CACHE_HOME` / `XDG_CONFIG_HOME` / `NUMBA_CACHE_DIR` under `CACHE_ROOT` and pin
-`CONDA_PKGS_DIRS` / `CONDA_ENVS_DIRS` to `$CONDA_BASE`, and the runner refuses to start if any of
-those is unwritable, rather than burning through the grid at ~50 s per failed sweep.
+The SSH key is uploaded in the HPC portal. Add to `~/.ssh/config`:
 
-**Nullable-string writes.** Every `tangram`/`tacco`/`dot` sweep used to die at its first K with
-`anndata.settings.allow_write_nullable_strings is False`, because the wrappers built their
-`mapping_prob.h5ad` index from Python strings and pandas' new string default made it a nullable
-`str` extension array. The wrappers now pass `pd.Index(…, dtype=object)` explicitly. The runner still
-exports `ANNDATA_ALLOW_WRITE_NULLABLE_STRINGS=1` as a net for any other write in those envs.
+```
+Host csnhr
+    HostName csnhr.nhr.fau.de
+    User <user>
+    IdentityFile ~/.ssh/id_ed25519_nhr_fau
+    IdentitiesOnly yes
+Host tinyx
+    HostName tinyx.nhr.fau.de
+    User <user>
+    ProxyJump csnhr
+    IdentityFile ~/.ssh/id_ed25519_nhr_fau
+    IdentitiesOnly yes
+```
 
-**No `spatial-aim` in the aligner envs.** The wrappers were launched as `python -m
-spatialaim.reference_aligners.run_tangram`, which required the package inside `tangram_env`. They are now
-standalone scripts executed by path, importing nothing from `spatialaim`, so the aligner envs hold only
-their own aligner. The persistent per-sweep worker (`--server` mode, `AlignerWorker`) is gone with
-it: each K is one `conda run`.
+### 1. Copy data and code (local)
 
-## Two things worth deciding before you start it
+`csnhr` is the transfer host.
 
-**Runtime.** In Leiden mode at resolution 3.0 a sweep has as many K levels as there are start
-clusters (often > 100), each level running its own analysis — and for `tangram`/`tacco`/`dot` its own
-external alignment. 1926 of the 3210 sweeps are external-aligner sweeps, and 71 of the 120 pairs are
-`07_mouse-retina` slices. Since the persistent worker is gone, every one of those K levels now also
-pays a fresh `conda run` (env activation + the aligner's imports + a re-read of the prepared pair) —
-roughly 10–20 s each on top of the alignment itself. Even with 8 workers, full-grid full-K is a long
-run. Options: coarsen the external-aligner stages (`K_STEP=5`, or `K_MAX` to cap the top), raise
-`WORKERS`, or add machines via `SHARD_COUNT`.
+```powershell
+ssh tinyx "mkdir -p <WORK>/spatialaim_exp1/data <WORK>/spatialaim_exp1/code; echo `$WORK"
+scp -r C:\Users\zi69hebi\Dev\10_Alignment\Data\01_Datasets_Paper csnhr:<WORK>/spatialaim_exp1/data/
+scp -r C:\Users\zi69hebi\Dev\10_Alignment\SpatialAIM-Experiments\experiment1 csnhr:<WORK>/spatialaim_exp1/code/
+```
 
-Resume is per sweep, so none of this is lost work: anything with a `k_comparison.csv` is skipped, and
-the finished `nearest_centroid` / `wann` sweeps from the first run are simply skipped on the next
-start. Restrict the run to what is missing with `MAPPINGS="tangram tacco dot"`.
+After a later code change, copy `experiment1/` again; the data never.
 
-**Disk.** The reference-scaffold cache is one prepared reference h5ad per (pair, start mode, tree)
-cell. Hardlinking ward → average halves that, leaving 321 copies. If the reference h5ads are large,
-set `PRUNE_SCAFFOLD=1` — the GUI rebuilds a scaffold on demand when you browse a cell later.
+### 2. Environments (tinyx, once, takes a while)
+
+```bash
+cd $WORK/spatialaim_exp1/code/experiment1
+bash 00_setup_server.sh                     # clone @ pinned commit, all four envs, checks
+bash 00_setup_server.sh check               # checks only, any time later
+```
+
+The check has to show `OK` for all three wrappers and for DOTr, and `spatialaim validate` must
+show no errors.
+
+### 3. One-pair end-to-end test
+
+This runs pair 1 (`01_mouse-ssp`) with one start of each kind into its own root `test/`: unit 0
+(Leiden start) and unit 1 (`ann_cellType`), so 2 scaffolds and 5 mappers × 2 trees × 2 units = 20
+runs. That covers both code paths and both roles of `best_per_run.csv` (`TEST_UNITS` in `grid.py`). Every
+command runs in `$WORK/spatialaim_exp1/code/experiment1`.
+
+```bash
+cd $WORK/spatialaim_exp1/code/experiment1
+source config.sh && conda activate spatialaim_env
+export EXP1_ROOT=$EXP1_BASE/test
+
+sbatch.tinyfat --array=0-1 01_scaffolds.tinyfat.sbatch test
+squeue.tinyfat -u $USER                     # wait until they are gone (a few minutes)
+python 03_status.py                         # A: 2 done
+
+for m in nearest_centroid wann tacco tangram; do
+  sbatch.tinyfat -J exp1_B_$m --time=02:00:00 --array=0-1 02_map.tinyfat.sbatch test $m
+done
+sbatch.tinyfat -J exp1_B_dot --time=08:00:00 --array=0 02_map.tinyfat.sbatch test dot   # Leiden
+sbatch.tinyfat -J exp1_B_dot --time=04:00:00 --array=1 02_map.tinyfat.sbatch test dot   # annotation
+python 03_status.py --failed                # wait until 22 / 22 done (~1 h, mostly dot)
+
+python 04_summarize.py
+```
+
+Check before going on:
+- [ ] `03_status.py`: 22 / 22 done, 0 failed, **0 cache misses**.
+- [ ] `summary/meta.json`: `missing: 0`.
+- [ ] `summary/best_per_run.csv`: 20 rows, 10 `spatialaim` and 10 `baseline`.
+- [ ] `summary/resources_stage_b.csv`: tacco, dot and tangram rows
+      `peak_rss_children_mb` > 0 (the aligner process was sampled); tangram `wall_s` minutes, not
+      seconds.
+- [ ] `summary/resources_stage_a.csv`: `scaffold_s` well under the 30 min limit.
+- [ ] `logs/*.out`: no tracebacks.
+
+Pull the test (local) and draw it into a scratch vault, which checks the figure side:
+
+```powershell
+$W = "C:\Users\zi69hebi\Dev\10_Alignment\Data\02_Results\experiment1_test"; mkdir $W
+scp -r "csnhr:<WORK>/spatialaim_exp1/test/summary" $W
+$env:SPATIALAIM_EXP1 = $W; $env:SPATIALAIM_VAULT = "$env:TEMP\exp1_vault"
+python sections/03_reconstruction/panels.py; python sections/04_biology/panels.py --mapper nearest_centroid
+```
+
+These figures are sparse because they have one reference only; the point is that the pipeline
+runs.
+
+### 4. Full grid
+
+Walltimes (`JOB_TIME`, `DOT_TIME` in `grid.py`): 2 h for nearest_centroid, wann, tacco and tangram (first
+round's slowest job: 0.7, 0.7, 1.3 and 0.9 h), so they can also use TinyFat's short-job nodes. DOT is split by start kind
+(annotation starts sweep few K and are fast) and gets realistic limits instead of 24 h for all
+252 jobs: 4 h for annotation starts (first round: p99 2.6 h, max 5.1 h) and 8 h for Leiden starts
+(p99 6.6 h, max 8.2 h). The few jobs that run over get resubmitted with `--time=24:00:00` (step 5);
+a tree that finished before has `DONE` and is skipped.
+
+`%20` caps how many jobs of one array run at once (6 stage-B arrays → at most 120 jobs); raise or
+lower it as the queue allows.
+
+```bash
+export EXP1_ROOT=$EXP1_BASE/run
+sbatch.tinyfat --array=0-251%20 01_scaffolds.tinyfat.sbatch run
+python 03_status.py                         # wait until A: 252 done
+
+for m in nearest_centroid wann tacco tangram; do
+  sbatch.tinyfat -J exp1_B_$m --time=02:00:00 --array=0-251%20 02_map.tinyfat.sbatch run $m
+done
+sbatch.tinyfat -J exp1_B_dot --time=04:00:00 --array=$(python grid.py array annotation)%20 02_map.tinyfat.sbatch run dot
+sbatch.tinyfat -J exp1_B_dot --time=08:00:00 --array=$(python grid.py array leiden)%20 02_map.tinyfat.sbatch run dot
+```
+
+Submit stage B only once stage A is complete: a stage-B job whose scaffold is missing reports
+`no_scaffold` and exits. To try one job per array first, submit `--array=0`, check its
+runs, then the full range: done runs are skipped.
+
+Watch the run with `squeue.tinyfat -u $USER`, `python 03_status.py`
+and `tail -f $EXP1_ROOT/logs/ledger.tsv`.
+
+### 5. Leftovers
+
+```bash
+python 03_status.py --failed                # OOM? / exit <n> with the log path, then one
+                                            # ready sbatch line per array with the unfinished units
+```
+
+Copy those lines; a resubmitted job skips its runs that already have `DONE`. Extra options go
+before the script name and override its `#SBATCH` lines, e.g. `--mem=128G` after an OOM or
+`--time=…`.
+
+### 5b. The one run that does not fit 24 h
+
+DOT on unit 248 (pair 87, `09_human-breast-cancer` against the whole 167,780-cell Xenium
+section, Leiden start) needs more than 24 h for one tree. It runs as **one array task per K**
+instead: each task is `spatialaim run --k_min K --k_max K` on the unit's scaffold, measured like
+any run, and `05b_merge_k.py` then scores the K levels together with spatialaim's own cross-K
+comparison and writes the ordinary run folder (`k_comparison.csv`, `k_selection.json`,
+`k_levels.zip`, `resources.json`, `DONE`), so `03_status.py` and `04_summarize.py` see a normal
+run. Per tree, only for a tree without `DONE`:
+
+```bash
+# which trees already finished (a listed DONE = that tree needs nothing more):
+ls $EXP1_BASE/run/results/087_09_human-breast-cancer__09_human-breast-cancer/leiden_res3.0/*/dot/DONE
+sbatch.tinyfat --array=$(python 05a_run_k.py ward --levels)%20 05a_run_k.tinyfat.sbatch run ward
+python 05b_merge_k.py ward                  # once all K are done; else prints the --array to resubmit
+```
+
+(and the same with `average`). Each K keeps its files and log under
+`$EXP1_BASE/run/split_k/<run_id>/k_<kkk>/`. In the summary this run's `wall_s` is the **sum over its K
+jobs** and its peak memory the largest of them (`resources.json` carries `split_by_k: true` and a
+`per_k` list with each job's time, memory, mapping and analysis seconds). Every K job loads the scaffold and the slice on its own, so the sum is a little
+above what one sweep would take -- say so where the timing is reported.
+
+### 6. Summary and pull
+
+```bash
+python 04_summarize.py                      # expects missing: 0
+```
+
+```powershell
+$D = "C:\Users\zi69hebi\Dev\10_Alignment\Data\02_Results\experiment1"; mkdir $D
+scp -r "csnhr:<WORK>/spatialaim_exp1/run/summary" $D
+```
+
+### 7. Figures (local)
+
+```powershell
+python sections/03_reconstruction/panels.py           # panels into the vault (safe)
+foreach ($m in "nearest_centroid", "wann", "tacco", "dot", "tangram") { python sections/04_biology/panels.py --mapper $m }
+python sections/03_reconstruction/make_excalidraw.py  # OVERWRITES the hand-edited drawing
+python sections/04_biology/make_excalidraw.py --mapper <m>  # idem, per mapper
+```
+
+Step `panels.py` alone refreshes the images the existing drawings embed. Run `make_excalidraw.py`
+only if you want the layout regenerated.
+
+## `summary/`
+
+| File | Content |
+|---|---|
+| `best_per_run.csv` | one row per stage-B run root at the K that matters: `spatialaim` (Leiden, K = `best.overall`) or `baseline` (annotation, K = T). Only what sections 03/04 read: `pair_id`, `reference`, `pair_dir`, `role`, `ann_key`, `tree`, `mapper`, `k`, `score_overall` and the six plotted metrics |
+| `all_k_per_run.csv.gz` | every `k_comparison.csv` row with the run's keys, for anything beyond the figures |
+| `resources_stage_b.csv` | per stage-B run: `wall_s`, `cpu_user_s`, `cpu_sys_s`, `peak_rss_tree_mb`, `peak_rss_proc_mb`, `peak_rss_children_mb`, host/CPU/GPU, plus `scaffold_build_s`, `scaffold_peak_rss_tree_mb` and `wall_with_scaffold_s` |
+| `resources_stage_a.csv` | per stage-A build: the same measurements plus `scaffold_s` (log-timed, to the cache write) and `scaffold_mb` |
+| `missing.csv` | grid runs without `DONE` |
+| `meta.json` | counts (grid runs, done, missing), spatialaim version(s) |
