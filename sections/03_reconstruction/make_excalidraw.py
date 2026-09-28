@@ -63,6 +63,8 @@ LEG_GAP = 30          # key baseline to the letter line of row (a) below it
 HEADINGS = {
     "delta_spot": "Reconstruction and granularity, comparing SpatialAIM and given annotations",
     "mappers": "Comparing different mappers within SpatialAIM",
+    "runtime": "Runtime",
+    "memory": "Peak memory",
 }
 
 drawing = Drawing("f23", PANELS, paths.VAULT)
@@ -111,13 +113,14 @@ def build(manifest: dict) -> None:
         text(letter, x, top - LETTER_DROP, size=FS_LETTER)
         text(HEADINGS[name], x + HEAD_DX, top - LETTER_DROP + 9, size=FS_HEAD)
 
-    # Both rows occupy the same span: they start at PAD and end where the wider
-    # of the two does. Row (b) is one image, so its width sets the span, and
-    # row (a)'s mapper-name column takes up whatever the three heat maps leave.
+    # Both rows occupy the same span: they start at PAD and end where row (b) --
+    # the mapper comparison and the two cost panels -- does; row (a)'s
+    # mapper-name column takes up whatever the three heat maps leave.
     w_map, h_map = size("mappers")
+    w_cost = size("runtime")[0]
     w_heat, h_heat = size("delta_spot")
     gap = 30
-    span = w_map
+    span = w_map + 2 * w_cost + 2 * gap
     names_w = span - 3 * w_heat - 2 * gap    # the column of mapper names
     heat_x = PAD + names_w
 
@@ -162,6 +165,10 @@ def build(manifest: dict) -> None:
     row2 = row1 + h_heat + ROW_GAP + LETTER_DROP
     label("mappers", PAD, row2, "b")
     drawing.image("mappers", PAD, row2, manifest)
+    for i, (name, letter) in enumerate((("runtime", "c"), ("memory", "d"))):
+        x = PAD + w_map + gap + i * (w_cost + gap)
+        label(name, x, row2, letter)
+        drawing.image(name, x, row2, manifest)
     logger.info("canvas %.0f x %.0f units", WIDTH, row2 + h_map + PAD)
 
 

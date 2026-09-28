@@ -27,6 +27,13 @@ def load() -> pd.DataFrame:
     return pd.read_csv(path, keep_default_na=False, na_values=[""])
 
 
+def resources(stage: str) -> pd.DataFrame:
+    """``summary/resources_stage_<stage>.csv`` (stage "a" = scaffold builds, "b" =
+    mapping runs): time and memory per run, from its resources.json."""
+    return pd.read_csv(paths.EXP1_SUMMARY / f"resources_stage_{stage}.csv",
+                       keep_default_na=False, na_values=[""])
+
+
 def paired(df: pd.DataFrame, metric: str) -> pd.DataFrame:
     """Put each SpatialAIM run next to the annotation run it is compared with.
 

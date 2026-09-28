@@ -36,6 +36,7 @@ from spatialaim_experiments.style import (
 )
 
 FIGURE = "3"
+LEIDEN_TAG = "leiden_res3.0"
 METRIC_SPOT, METRIC_GENE = "cossim_hard_raw_spot", "cossim_hard_raw_gene"
 
 use_paper_rcparams()
@@ -45,9 +46,13 @@ panels = PanelWriter(paths.panel_dir(FIGURE))
 # of each image holds the rotated reference names, the bottom the colour bar.
 HEAT_SIZE = (2.13, 2.65)
 HEAT_BAR = (0.12, 0.185, 0.76, 0.028)
-# Row (b): the plotting box must be at least as tall as the rotated y-label is long.
-MAPPER_SIZE = (7.0, 2.14)
-MAPPER_AXES = (0.105, 0.215, 0.885, 0.757)
+# Row (b): the mapper comparison and the two cost panels, one plotting band for all
+# three (same height and vertical fractions); with two 0.1 in gaps as wide as row (a),
+# 7.0 in. The plotting box must be at least as tall as the rotated y-labels are long.
+MAPPER_SIZE = (4.3, 2.14)
+MAPPER_AXES = (0.735 / 4.3, 0.215, 3.495 / 4.3, 0.757)
+COST_SIZE = (1.25, 2.14)
+COST_AXES = (0.60 / 1.25, 0.215, 0.60 / 1.25, 0.757)
 
 # Δ cosine: a fixed scale, not one fitted to the data -- almost every cell is near
 # zero, which is the row's point, and autoscaling would turn that noise into colour.
@@ -169,6 +174,21 @@ def centred(df: pd.DataFrame, metric: str) -> pd.Series:
     return runs.assign(offset=offset).groupby(["reference", "mapper", "tree"])["offset"].mean()
 
 
+def mapper_box(ax, values, position: float, width: float, mapper: str,
+               outliers: bool = False) -> None:
+    """One box in the mapper's colour: median, quartiles, whiskers (1.5 x IQR);
+    values beyond the whiskers as dots if ``outliers``, else not drawn."""
+    colour = MAPPER_COLOURS[mapper]
+    box = ax.boxplot([values], positions=[position], widths=width,
+                     patch_artist=True, showfliers=outliers,
+                     medianprops=dict(color=colour, lw=1.2),
+                     whiskerprops=dict(color=colour, lw=0.7),
+                     capprops=dict(color=colour, lw=0.7),
+                     flierprops=dict(marker="o", markersize=2.5, markerfacecolor=colour,
+                                     markeredgecolor=colour))
+    box["boxes"][0].set(facecolor=colour, alpha=0.5, edgecolor=colour, linewidth=0.9)
+
+
 def panel_mappers(df: pd.DataFrame) -> None:
     """Four groups (metric x tree), one box per mapper in each; a box holds the
     ten references' values."""
@@ -180,20 +200,58 @@ def panel_mappers(df: pd.DataFrame) -> None:
     ax.axhline(0, color=PALE, lw=0.8, zorder=1)
     for g, (offsets, _, tree) in enumerate(groups):
         for m, mapper in enumerate(MAPPERS):
-            colour = MAPPER_COLOURS[mapper]
             values = offsets.xs((mapper, tree), level=("mapper", "tree")).to_numpy()
-            box = ax.boxplot([values], positions=[g + (m - 2) * 0.17], widths=0.15,
-                             patch_artist=True, showfliers=False,
-                             medianprops=dict(color=colour, lw=1.2),
-                             whiskerprops=dict(color=colour, lw=0.7),
-                             capprops=dict(color=colour, lw=0.7))
-            box["boxes"][0].set(facecolor=colour, alpha=0.5, edgecolor=colour, linewidth=0.9)
+            mapper_box(ax, values, g + (m - 2) * 0.17, 0.15, mapper)
     ax.set_xticks(range(len(groups)))
     ax.set_xticklabels([f"{label}\n{TREE_LABELS[tree]} linkage" for _, label, tree in groups])
     ax.set_xlim(-0.55, len(groups) - 0.45)
     ax.set_ylabel("Δ cosine similarity\nvs mean across mappers")
     bare(ax)
     panels.save(fig, "mappers")
+
+
+# ---------------------------------------------------------------------------
+# (c, d) what each mapper costs
+# ---------------------------------------------------------------------------
+
+def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFrame:
+    """One cost value per (reference, mapper), for the boxes of panels c and d.
+
+    Input
+        res     resources_stage_b.csv (exp1.resources("b")): one row per mapping run
+        column  "wall_s" (seconds for the whole K sweep) or "peak_rss_tree_mb"
+                (peak memory of the whole process tree, the aligner's own
+                process included -- the same measure for every mapper)
+        unit    factor to the plotted unit, e.g. 1/60 for minutes
+
+    Output
+        columns reference, mapper, value: the median over the reference's
+        pairs and both trees, Leiden starts only (the SpatialAIM runs of panel b).
+    """
+    runs = res[(res["start_tag"] == LEIDEN_TAG) & (res["status"] == "ok")]
+    return (runs.groupby(["sc", "mapper"])[column].median().mul(unit)
+                .rename("value").reset_index().rename(columns={"sc": "reference"}))
+
+
+def panel_cost(cost: pd.DataFrame, name: str, ylabel: str, log: bool) -> None:
+    """Five boxes, one per mapper, each holding the ten references' values, with
+    the outliers shown (a slow reference is exactly what this panel is about)."""
+    fig = plt.figure(figsize=COST_SIZE)
+    ax = fig.add_axes(COST_AXES)
+    for m, mapper in enumerate(MAPPERS):
+        mapper_box(ax, cost.loc[cost["mapper"] == mapper, "value"].to_numpy(), m, 0.62, mapper,
+                   outliers=True)
+    if log:
+        ax.set_yscale("log")
+        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.yaxis.set_minor_locator(mpl.ticker.NullLocator())
+    else:
+        ax.set_ylim(bottom=0)
+    ax.set_xticks([])
+    ax.set_xlim(-0.6, len(MAPPERS) - 0.4)
+    ax.set_ylabel(ylabel)
+    bare(ax)
+    panels.save(fig, name)
 
 
 # ---------------------------------------------------------------------------
@@ -208,6 +266,11 @@ def main() -> None:
                "Δ number of cell types\n(SpatialAIM − annotation)")
     panel_mappers(df)
 
+    runs = exp1.resources("b")
+    panel_cost(cost_per_reference(runs, "wall_s", 1 / 60), "runtime",
+               "Runtime over all K (min)", log=True)
+    panel_cost(cost_per_reference(runs, "peak_rss_tree_mb", 1 / 1024), "memory",
+               "memory used (GB)", log=False)
     panels.write_manifest()
 
 
