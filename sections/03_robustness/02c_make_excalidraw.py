@@ -1,4 +1,4 @@
-# Assemble the Results 2.2 figure as an Excalidraw drawing in the Obsidian vault.
+# Assemble the Results 2.3 figure as an Excalidraw drawing in the Obsidian vault.
 #
 # The data panels are the PNGs written by 02b_panels.py, embedded by wikilink --
 # re-running that script updates them in place. This script draws what makes the
@@ -7,7 +7,7 @@
 # caption.
 #
 # One mapper per invocation (``--mapper``, required), assembled from
-# figure_2/<mapper>/panels/ into figure_2/<mapper>/figure_2_<mapper>.excalidraw.md.
+# figure_3/<mapper>/panels/ into figure_3/<mapper>/figure_3_<mapper>.excalidraw.md.
 #
 # A band of keys, then three rows of four even columns, one arrow per column:
 #
@@ -43,7 +43,7 @@ from spatialaim_experiments.style import GREY, INK, MAPPERS, SCALE
 
 logger = logging.getLogger(__name__)
 
-FIGURE = "2"
+FIGURE = "3"
 
 PAD = 14
 # The paper places the figure at its 5.17 in text width, so the drawing is scaled
@@ -94,9 +94,15 @@ HEADINGS = {
 # beside it, set the same way.
 HEAD_SPLIT = "Induced type split"
 HEAD_CRITERIA = "Criteria"
-HEAD_STATES = "interpreted cell types"
+HEAD_STATES = "Interpreted cell types"
 
 drawing: Drawing | None = None  # set by main(), once --mapper says which figure this is
+
+
+def capital(label: str) -> str:
+    """A legend label as the figure prints it: first letter capitalised, the rest
+    as panels.json has it ("layer 4/5" -> "Layer 4/5", "L6b CTX" unchanged)."""
+    return label[:1].upper() + label[1:]
 
 
 def text(body: str, x, y, size=FS_LEG, colour=INK, right=False):
@@ -197,8 +203,9 @@ def build(manifest: dict) -> None:
     # can sit above the figure, where they are read before the panels rather
     # than after them. Each column gets the share of the width it would need on
     # one line, so the two wrap equally hard.
+    criteria = [[capital(label), *rest] for label, *rest in legends["criteria"]]
     keys = [(HEAD_SPLIT, legends["annotation"], "dot"),
-            (HEAD_CRITERIA, legends["criteria"], "line")]
+            (HEAD_CRITERIA, criteria, "line")]
     want = [legend_natural(heading, entries) for heading, entries, _ in keys]
     room = WIDTH - 2 * PAD - LEG_COL_GAP * (len(keys) - 1)
     band, cursor = PAD, PAD
@@ -268,7 +275,7 @@ def build(manifest: dict) -> None:
     # heading in the first column, the panel itself in the middle, its key where
     # the last column of the rows above begins -- so the row is read against the
     # same grid even though it is not built from it.
-    states = [(f"{s['n']}  {s['name']}", s["colour"]) for s in legends["states"]]
+    states = [(f"{s['n']}  {capital(s['name'])}", s["colour"]) for s in legends["states"]]
     head = HEADINGS["dots_states_fine"]
     key_x = left[3]
     head_right = PAD + HEAD_DX + text_size(head, FS_HEAD)[0]
@@ -302,7 +309,7 @@ def main() -> None:
                     help="which mapper's panels to assemble")
     mapper = ap.parse_args().mapper
     panel_dir = paths.panel_dir(FIGURE, mapper)
-    drawing = Drawing("f22", panel_dir, paths.VAULT)
+    drawing = Drawing("f23", panel_dir, paths.VAULT)
 
     build(json.loads((panel_dir / "panels.json").read_text(encoding="utf-8")))
     drawing.check()

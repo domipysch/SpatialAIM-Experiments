@@ -145,13 +145,16 @@ class Drawing:
                             verticalAlign="top", containerId=None,
                             autoResize=box is None, lineHeight=1.2)
 
-    def image(self, name: str, x: float, y: float, manifest: dict) -> dict:
+    def image(self, name: str, x: float, y: float, manifest: dict,
+              folder: Path | None = None) -> dict:
         """A panel PNG, embedded by wikilink so re-exporting updates the
         drawing. Placed at the size ``panels.json`` recorded, not at its pixel
-        count."""
+        count. ``folder`` overrides ``panel_dir`` for an image kept elsewhere in
+        the vault, such as a screenshot taken by hand."""
         panel = manifest["panels"][name]
         file_id = hashlib.sha1(name.encode()).hexdigest()
-        link = f"{self.panel_dir.relative_to(self.vault).as_posix()}/{panel['file']}"
+        folder = self.panel_dir if folder is None else Path(folder)
+        link = f"{folder.relative_to(self.vault).as_posix()}/{panel['file']}"
         self.embedded[file_id] = link
         return self.element("image", x, y, panel["w"], panel["h"],
                             fileId=file_id, status="saved", scale=[1, 1],

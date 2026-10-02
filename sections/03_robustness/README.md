@@ -1,4 +1,4 @@
-# Section 02 — SpatialAIM is independent of the annotation's granularity (Fig. 2.2)
+# Section 03 — SpatialAIM is independent of the annotation's granularity (Fig. 2.3)
 
 ## Running it
 
@@ -41,6 +41,6 @@ the analysis numbers in `Data/02_Results/robustness/_analysis/<mapper>/`.
 | `01_run_robustness_experiments.ps1` | the three sweeps for one mapper (`-Mapper`) or all (`-All`); skips finished runs, one log per run in `_logs/` |
 | `02_make_figures.ps1` | runs 02a → 02b → 02c, per mapper (`-Mapper <name>` or `-All`) |
 | `02a_analyse_invisible_split.py` | from the `invisible_split` run → `robustness/_analysis/<mapper>/results.json`: the spot share of each phantom half at K=4 (quoted in the text), plus SpatialAIM's proposed K and the score curves that `02b_panels.py` draws |
-| `02b_panels.py` | the nine panels of the assembled figure + `panels.json` → `Data/02_Results/robustness/plots/<mapper>/`, copied into the vault folder the drawing embeds (`Excalidraw/figure_2/<mapper>/panels/`); also holds the run access (spot → type/state per K), the palette and the fine-annotation reading of the over-clustering states |
+| `02b_panels.py` | the nine panels of the assembled figure + `panels.json` → `Data/02_Results/robustness/plots/<mapper>/`, copied into the vault folder the drawing embeds (`Excalidraw/figure_3/<mapper>/panels/`); also holds the run access (spot → type/state per K), the palette and the fine-annotation reading of the over-clustering states |
 | `02c_make_excalidraw.py` | the drawing: letters, headings, the four arrows, three legends |
 

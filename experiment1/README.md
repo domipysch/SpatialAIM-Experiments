@@ -178,7 +178,7 @@ Pull the test (local) and draw it into a scratch vault, which checks the figure 
 $W = "C:\Users\zi69hebi\Dev\10_Alignment\Data\02_Results\experiment1_test"; mkdir $W
 scp -r "csnhr:<WORK>/spatialaim_exp1/test/summary" $W
 $env:SPATIALAIM_EXP1 = $W; $env:SPATIALAIM_VAULT = "$env:TEMP\exp1_vault"
-python sections/03_reconstruction/panels.py; python sections/04_biology/panels.py --mapper nearest_centroid
+python sections/02_reconstruction/panels.py; python sections/04_biology/panels.py --mapper nearest_centroid
 ```
 
 These figures are sparse because they have one reference only; the point is that the pipeline
@@ -263,9 +263,9 @@ scp -r "csnhr:<WORK>/spatialaim_exp1/run/summary" $D
 ### 7. Figures (local)
 
 ```powershell
-python sections/03_reconstruction/panels.py           # panels into the vault (safe)
+python sections/02_reconstruction/panels.py           # panels into the vault (safe)
 foreach ($m in "nearest_centroid", "wann", "tacco", "dot", "tangram") { python sections/04_biology/panels.py --mapper $m }
-python sections/03_reconstruction/make_excalidraw.py  # OVERWRITES the hand-edited drawing
+python sections/02_reconstruction/make_excalidraw.py  # OVERWRITES the hand-edited drawing
 python sections/04_biology/make_excalidraw.py --mapper <m>  # idem, per mapper
 ```
 

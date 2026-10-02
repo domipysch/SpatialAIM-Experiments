@@ -18,4 +18,6 @@ One plot per figure via `--mapper`.
 ```bash
 python sections/04_biology/panels.py --mapper wann             # seven panels + panels.json
 python sections/04_biology/make_excalidraw.py --mapper wann    # create excalidraw figure
+python sections/04_biology/panels.py --all-mappers              # the same, aggregated over all five
+python sections/04_biology/make_excalidraw.py --all-mappers
 ```

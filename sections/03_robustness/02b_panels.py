@@ -1,10 +1,10 @@
-# Panels of the Results 2.2 figure, each as its own image, for assembly in
-# Excalidraw (the vault's Excalidraw/figure_2/<mapper>/figure_2_<mapper>.excalidraw.md).
+# Panels of the Results 2.3 figure, each as its own image, for assembly in
+# Excalidraw (the vault's Excalidraw/figure_3/<mapper>/figure_3_<mapper>.excalidraw.md).
 #
 # One mapper per invocation (``--mapper``, required); every mapper gets the same
 # figure. The panels + panels.json go to Data/02_Results/robustness/plots/<mapper>/
 # and are copied into the vault folder the drawing embeds them from
-# (Excalidraw/figure_2/<mapper>/panels/): the drawing can only link to files
+# (Excalidraw/figure_3/<mapper>/panels/): the drawing can only link to files
 # inside the vault.
 #
 # The figure carries almost no text: what is not anchored to data (letters,
@@ -210,7 +210,7 @@ def excitatory_states(fractions: pd.DataFrame) -> pd.DataFrame:
 # the figure
 # --------------------------------------------------------------------------
 
-FIGURE = "2"
+FIGURE = "3"
 panels: PanelWriter | None = None  # set by main(), once the mapper is known
 
 # the cortex ends here: below it the section narrows into white matter, CA1 and
@@ -345,7 +345,7 @@ def scores_panel(name: str, scores: pd.DataFrame, k_best: int, dense: bool) -> N
     # Set on two lines because it is set rotated: "mapping scores" on one line is
     # 1.03 in at this size and the plotting box is 0.75 in tall, so a single line
     # would run out of both ends of the image.
-    ax.set_ylabel("mapping\nscores", fontsize=FS_TICK, labelpad=1.5,
+    ax.set_ylabel("Mapping\nscores", fontsize=FS_TICK, labelpad=1.5,
                   linespacing=1.05)
     panels.save(fig, name)
 

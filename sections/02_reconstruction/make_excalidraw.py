@@ -1,4 +1,4 @@
-# Assemble the Results 2.3 reconstruction figure as an Excalidraw drawing in the
+# Assemble the Results 2.2 reconstruction figure as an Excalidraw drawing in the
 # Obsidian vault.
 #
 # Same construction as figure 2: the data panels are the PNGs written by
@@ -6,14 +6,21 @@
 # place. This script draws only what makes them readable -- panel letters,
 # headings and the legends. Anything else belongs in the caption.
 #
-# The key to the five mapper colours, and below it two rows:
+# The key to the five mapper colours, and below it three rows:
 #
 #   a  SpatialAIM vs annotation, per spot | per gene | cell types used
-#   b  the five mappers at the K each proposes
+#   b  the five mappers at the K each proposes, per cell   c per gene
+#      d runtime   e memory
+#   f  the start clusters   g ward cut   h average cut   (UMAPs)
 #
 # The first row is one argument in three panels of identical geometry:
 # reconstruction barely moves either way, and SpatialAIM gets there with substantially
-# fewer cell types. The second asks which mapper does it best.
+# fewer cell types. The second asks which mapper does it best. The third shows
+# on one reference what the two linkages make of the same start clusters.
+#
+# The UMAPs of the third row are screenshots taken by hand from the GUI, not
+# written by panels.py: they live in figure_2/umaps/ and are placed at the row's
+# width, at their own aspect ratio.
 #
 # Element construction, text measurement and the file format itself live in
 # spatialaim_experiments.excalidraw; what is here is this figure's own layout.
@@ -24,13 +31,14 @@ import logging
 from spatialaim_experiments import paths
 from spatialaim_experiments.excalidraw import WIDTH, Drawing, advance, text_size
 from spatialaim_experiments.style import (HEAT_AXES, MAPPER_COLOURS, MAPPER_LABELS, MAPPERS,
-                                          TREE_LABELS, TREES)
+                                          TREE_LABELS, TREES, png_size)
 
 logger = logging.getLogger(__name__)
 
-FIGURE = "3"
+FIGURE = "2"
 PANELS = paths.panel_dir(FIGURE)
 OUT = paths.drawing(FIGURE)
+UMAPS = PANELS.parent / "umaps"   # the hand-taken screenshots of row (f-h)
 
 PAD = 14
 # The paper places the figure at its 5.17 in text width, so the drawing is
@@ -54,7 +62,8 @@ LETTER_DROP = FS_LETTER * 1.2 + 6
 LINE = FS_HEAD * 1.2
 
 ROW_TOP = 50
-ROW_GAP = 52          # panel bottom to the next row's letter line
+ROW_GAP = 28          # row (a)'s panel bottom to row (b-e)'s letter line
+ROW3_GAP = 20         # the same from row (b-e) to row (f-h)
 COL_GAP = 60
 LEG_GAP = 30          # key baseline to the letter line of row (a) below it
 
@@ -62,12 +71,17 @@ LEG_GAP = 30          # key baseline to the letter line of row (a) below it
 # colour bars, so the row only has to say what the comparison is.
 HEADINGS = {
     "delta_spot": "Reconstruction and granularity, comparing SpatialAIM and given annotations",
-    "mappers": "Comparing different mappers within SpatialAIM",
-    "runtime": "Runtime",
+    "mappers_cell": "Comparing mappers, per cell",
+    "mappers_gene": "Mappers, per gene",
+    "runtime": "Runtime, all K",
     "memory": "Peak memory",
+    "start": "Leiden start clusters",
+    "ward": "Ward linkage, K = 2",
+    "average": "Average linkage, K = 2",
 }
+UMAP_ROW = ("start", "ward", "average")
 
-drawing = Drawing("f23", PANELS, paths.VAULT)
+drawing = Drawing("f22", PANELS, paths.VAULT)
 
 
 def text(body: str, x, y, size=FS_LEG, **kw):
@@ -113,13 +127,14 @@ def build(manifest: dict) -> None:
         text(letter, x, top - LETTER_DROP, size=FS_LETTER)
         text(HEADINGS[name], x + HEAD_DX, top - LETTER_DROP + 9, size=FS_HEAD)
 
-    # Both rows occupy the same span: they start at PAD and end where row (b) --
+    # All rows occupy the same span: they start at PAD and end where row (b-e) --
     # the mapper comparison and the two cost panels -- does; row (a)'s
     # mapper-name column takes up whatever the three heat maps leave.
-    w_map, h_map = size("mappers")
+    gap = 30
+    w_cell, h_map = size("mappers_cell")
+    w_map = w_cell + gap + size("mappers_gene")[0]   # b and c together
     w_cost = size("runtime")[0]
     w_heat, h_heat = size("delta_spot")
-    gap = 30
     span = w_map + 2 * w_cost + 2 * gap
     names_w = span - 3 * w_heat - 2 * gap    # the column of mapper names
     heat_x = PAD + names_w
@@ -163,13 +178,36 @@ def build(manifest: dict) -> None:
 
     # ---------------- row 2: the mappers -------------------------------------
     row2 = row1 + h_heat + ROW_GAP + LETTER_DROP
-    label("mappers", PAD, row2, "b")
-    drawing.image("mappers", PAD, row2, manifest)
-    for i, (name, letter) in enumerate((("runtime", "c"), ("memory", "d"))):
+    for name, x, letter in (("mappers_cell", PAD, "b"),
+                            ("mappers_gene", PAD + w_cell + gap, "c")):
+        label(name, x, row2, letter)
+        drawing.image(name, x, row2, manifest)
+    for i, (name, letter) in enumerate((("runtime", "d"), ("memory", "e"))):
         x = PAD + w_map + gap + i * (w_cost + gap)
         label(name, x, row2, letter)
         drawing.image(name, x, row2, manifest)
-    logger.info("canvas %.0f x %.0f units", WIDTH, row2 + h_map + PAD)
+
+    # ---------------- row 3: the UMAPs ---------------------------------------
+    # Three screenshots across the same span as the rows above, with the same
+    # gap, each under its own letter and heading.
+    row3 = row2 + h_map + ROW3_GAP + LETTER_DROP
+    add_umaps(manifest, (span - 2 * gap) / 3)
+    h_umap = 0
+    for i, (name, letter) in enumerate(zip(UMAP_ROW, "fgh")):
+        x = PAD + i * (panels[name]["w"] + gap)
+        label(name, x, row3, letter)
+        drawing.image(name, x, row3, manifest, folder=UMAPS)
+        h_umap = max(h_umap, panels[name]["h"])
+    logger.info("canvas %.0f x %.0f units", WIDTH, row3 + h_umap + PAD)
+
+
+def add_umaps(manifest: dict, width: float) -> None:
+    """Enter the UMAP screenshots into the manifest as if panels.py had written
+    them, scaled to ``width`` at their own aspect ratio."""
+    for name in UMAP_ROW:
+        w, h = png_size(UMAPS / f"{name}.png")
+        manifest["panels"][name] = {"file": f"{name}.png",
+                                    "w": width, "h": round(width * h / w, 1)}
 
 
 def main() -> None:

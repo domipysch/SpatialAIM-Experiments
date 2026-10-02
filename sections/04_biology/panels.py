@@ -1,16 +1,25 @@
 """
-Panels of the biology/topology figure (figure 4) for one mapper, each as its own
-PNG, for assembly in Excalidraw (Excalidraw/figure_4/<mapper>/figure_4_<mapper>.excalidraw.md).
+Panels of the biology/topology figure (figure 4), each as its own PNG, for assembly
+in Excalidraw -- either for one mapper (``--mapper``, into figure_4/<mapper>/) or
+aggregated over all five (``--all-mappers``, into figure_4/all_mappers/).
 
-Two rows of three, one row per criterion:
+A row of four bar plots, then two rows of three, one row per criterion:
 
-    a  sketch_spatial                   what spatial organisation means, on a toy tissue patch
-    b  plaus_nhood_mean_self_zscore     SpatialAIM against the annotation, neighbourhood enrichment
-    c  plaus_local_purity_zscore        the same, local spatial purity
-    d  sketch_coherence                 what transcriptional coherence means, on a toy expression graph
-    e  plaus_modularity_st_expression   modularity over the slice's spots
-    f  plaus_modularity_shared          modularity over the reference's cells
+    a-d wins_<metric>                   per mapper, on how many references SpatialAIM beats the
+                                        annotation -- one per metric, in the order of f, g, i, j
+    e  sketch_spatial                   what spatial organisation means, on a toy tissue patch
+    f  plaus_nhood_mean_self_zscore     SpatialAIM against the annotation, neighbourhood enrichment
+    g  plaus_local_purity_zscore        the same, local spatial purity
+    h  sketch_coherence                 what transcriptional coherence means, on a toy expression graph
+    i  plaus_modularity_st_expression   modularity over the slice's spots
+    j  plaus_modularity_shared          modularity over the reference's cells
        dk_bar                           the colour bar all four scatters share
+
+The bar plots always show all five mappers, so they are the same in every version
+of the figure.
+
+    python sections/04_biology/panels.py --mapper wann
+    python sections/04_biology/panels.py --all-mappers
 """
 
 from __future__ import annotations
@@ -25,6 +34,8 @@ from spatialaim_experiments.style import (
     CMAP_DK,
     DK_LIMIT,
     INK,
+    MAPPER_COLOURS,
+    MAPPER_LABELS,
     MAPPERS,
     PALE,
     PanelWriter,
@@ -36,20 +47,21 @@ logger = logging.getLogger(__name__)
 
 FIGURE = "4"
 TREE = "average"
+ALL = "all_mappers"      # the folder of the version aggregated over all mappers
 
 # The four metrics, each with the measure its axis titles name. Only the two
 # spatial z-scores span decades and get logarithmic axes; the modularities live
 # inside one decade.
 METRICS = {
-    "nhood_mean_self_zscore": "mean z-score",
-    "local_purity_zscore": "z-score",
-    "modularity_st_expression": "modularity",
-    "modularity_shared": "modularity",
+    "nhood_mean_self_zscore": "Mean z-score",
+    "local_purity_zscore": "Z-score",
+    "modularity_st_expression": "Modularity",
+    "modularity_shared": "Modularity",
 }
 LOG_METRICS = {"nhood_mean_self_zscore", "local_purity_zscore"}
 
 use_paper_rcparams()
-# set by main() to the mapper's panel folder, figure_4/<mapper>/panels/
+# set by main() to the panel folder, figure_4/<mapper or all_mappers>/panels/
 panels: PanelWriter
 
 # Scatter: a square plotting box (x and y are the same quantity, so parity runs at
@@ -66,7 +78,7 @@ AXIS_PAD = 0.03
 
 # Sketch: the same vertical band as a scatter's plotting box (so a row reads as
 # one), plus a foot and a left margin for the two corner arrows, and a strip above
-# each half for its name ("observed" / "chance", set in Excalidraw).
+# each half for its name ("Observed" / "Chance", set in Excalidraw).
 AXIS_LEFT, AXIS_FOOT = 0.30, 0.26
 HALF_LABEL = 0.16
 SKETCH_SIZE = (2.05, MARGIN["top"] + SIDE + AXIS_FOOT)
@@ -78,27 +90,38 @@ SKETCH_AXES = {"sketch_spatial": ("x", "y"), "sketch_coherence": ("UMAP 1", "UMA
 
 BAR_SIZE = (3.45, 0.66)
 
+# Win counts: four panels on one y axis. (a) carries the tick labels and the axis
+# title, (b-d) only the spine and ticks, so all four plotting boxes are equally
+# wide. The foot holds the mapper names, set vertically.
+WINS_PLOT = (1.38, 0.8)
+WINS_LEFT, WINS_INSET = 0.72, 0.12
+WINS_BAR = 0.55       # bar width, of the 1 between two mappers
+WINS_RIGHT, WINS_FOOT, WINS_TOP = 0.04, 0.62, 0.08
+
 
 # ---------------------------------------------------------------------------
 # the four scatters: SpatialAIM against the annotation
 # ---------------------------------------------------------------------------
 
-def comparisons(df: pd.DataFrame, metric: str, mapper: str) -> pd.DataFrame:
-    """Each SpatialAIM run of ``mapper`` next to its annotation baseline.
+def comparisons(df: pd.DataFrame, metric: str, mapper: str | None) -> pd.DataFrame:
+    """Each SpatialAIM run next to its annotation baseline.
 
     Input
         df      best_per_run.csv (exp1.load()): one row per run
         metric  e.g. "local_purity_zscore"
-        mapper  e.g. "wann"
+        mapper  e.g. "wann"; None keeps all five
 
     Output
-        one row per pair (average tree, ``mapper`` only), with the columns of
+        one row per (pair, mapper) on the average tree, with the columns of
         exp1.paired() -- ``metric`` and ``k`` for SpatialAIM, ``<metric>_base``
         and ``k_base`` for the annotation, ``delta`` -- plus
           dk   k - k_base, how many more cell types SpatialAIM used
     """
     out = exp1.paired(df, metric)
-    out = out[(out["tree"] == TREE) & (out["mapper"] == mapper)].reset_index(drop=True)
+    out = out[out["tree"] == TREE]
+    if mapper is not None:
+        out = out[out["mapper"] == mapper]
+    out = out.reset_index(drop=True)
     out["dk"] = out["k"] - out["k_base"]
     return out
 
@@ -107,12 +130,13 @@ def scatter_points(pr: pd.DataFrame, metric: str) -> pd.DataFrame:
     """The points of one scatter panel.
 
     Input
-        pr      the output of comparisons(): one row per pair
+        pr      the output of comparisons(): one row per (pair, mapper)
         metric  the same metric comparisons() was called with
 
     Output
         one row per reference (one point in the panel), each averaged over the
-        reference's pairs:
+        reference's rows -- its pairs, and with all mappers its pairs x mappers
+        (every pair has all five, so each mapper weighs the same):
           reference    the reference's name
           spatialaim   ``metric`` for SpatialAIM          (the point's y)
           ann          ``metric`` for the annotation      (the point's x)
@@ -186,6 +210,67 @@ def panel_dk_bar() -> None:
     bar.spines[:].set_visible(False)
     bar.tick_params(length=1.5, pad=1.0)
     panels.save(fig, "dk_bar")
+
+
+# ---------------------------------------------------------------------------
+# the four bar plots: how often SpatialAIM beats the annotation, per mapper
+# ---------------------------------------------------------------------------
+
+def wins(df: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """Per mapper, on how many references SpatialAIM has the higher ``metric``.
+
+    Input
+        df      best_per_run.csv (exp1.load()): one row per run
+        metric  e.g. "local_purity_zscore"
+
+    Output
+        one row per mapper (in MAPPERS order), on the average tree:
+          wins   references where SpatialAIM's value, averaged over the
+                 reference's pairs, is strictly above the annotation's -- the
+                 same per-reference means a scatter plots, per mapper
+          n      references where both means exist
+    """
+    pr = comparisons(df, metric, None).dropna(subset=[metric, f"{metric}_base"])
+    ref = (pr.groupby(["mapper", "reference"])[[metric, f"{metric}_base"]].mean()
+             .reset_index())
+    ref = ref.assign(win=ref[metric] > ref[f"{metric}_base"])
+    return ref.groupby("mapper").agg(wins=("win", "sum"), n=("win", "size")).reindex(MAPPERS)
+
+
+def panel_wins(counts: dict[str, pd.DataFrame]) -> None:
+    """One bar plot per metric, all on the y axis of the first: a bar per mapper,
+    and a pale line at half the references, where SpatialAIM and the annotation are
+    even. A reference is a win when SpatialAIM's value is strictly higher."""
+    n = max(int(c["n"].max()) for c in counts.values())
+    ticks = [0, n / 2, n]          # none, half (the pale line) and all of the references
+    for i, (metric, count) in enumerate(counts.items()):
+        left = WINS_LEFT if i == 0 else WINS_INSET
+        w = left + WINS_PLOT[0] + WINS_RIGHT
+        h = WINS_FOOT + WINS_PLOT[1] + WINS_TOP
+        fig = plt.figure(figsize=(w, h))
+        ax = fig.add_axes((left / w, WINS_FOOT / h, WINS_PLOT[0] / w, WINS_PLOT[1] / h))
+        ax.axhline(n / 2, color=PALE, lw=0.8, zorder=1)
+        ax.bar(range(len(MAPPERS)), count["wins"], width=WINS_BAR, zorder=2,
+               color=[MAPPER_COLOURS[m] for m in MAPPERS])
+        ax.set_xticks(range(len(MAPPERS)))
+        ax.set_xticklabels([MAPPER_LABELS[m].replace(" ", "\n") for m in MAPPERS],
+                           rotation=90, linespacing=1.0)
+        ax.set_xlim(-0.6, len(MAPPERS) - 0.4)
+        ax.set_ylim(0, n)
+        ax.yaxis.set_major_locator(mpl.ticker.FixedLocator(ticks))
+        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        if i == 0:
+            # centred on the whole image, not the plotting box: the box is
+            # shorter than the label, the empty corner beside the mapper names
+            # is not
+            fig.text(0.03 / w, 0.5, "#References\nwhere SpatialAIM\nimproves metric",
+                     rotation=90, ha="left", va="center", linespacing=1.05,
+                     fontsize=mpl.rcParams["axes.labelsize"])
+        else:
+            ax.tick_params(axis="y", labelleft=False)
+        ax.tick_params(pad=1.5)
+        bare(ax)
+        panels.save(fig, f"wins_{metric}")
 
 
 # ---------------------------------------------------------------------------
@@ -284,11 +369,17 @@ def sketch_coherence() -> list[float]:
 
 # ---------------------------------------------------------------------------
 
-def main(mapper: str) -> None:
-    """All panels of ``mapper``'s figure, into figure_4/<mapper>/panels/."""
+def main(mapper: str | None) -> None:
+    """All panels of ``mapper``'s figure (None: aggregated over all mappers), into
+    figure_4/<mapper or all_mappers>/panels/."""
     global panels
-    panels = PanelWriter(paths.panel_dir(FIGURE, mapper))
+    panels = PanelWriter(paths.panel_dir(FIGURE, mapper or ALL))
     df = exp1.load()
+    counts = {metric: wins(df, metric) for metric in METRICS}
+    for metric, count in counts.items():
+        logger.info("%-26s SpatialAIM better on %s", metric,
+                    ", ".join(f"{m} {r.wins}/{r.n}" for m, r in count.iterrows()))
+    panel_wins(counts)
     for metric in METRICS:
         pr = comparisons(df, metric, mapper)
         cell = scatter_points(pr, metric)
@@ -304,6 +395,9 @@ def main(mapper: str) -> None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--mapper", required=True, choices=MAPPERS,
-                    help="whose figure to draw, into figure_4/<mapper>/")
+    which = ap.add_mutually_exclusive_group(required=True)
+    which.add_argument("--mapper", choices=MAPPERS,
+                       help="whose figure to draw, into figure_4/<mapper>/")
+    which.add_argument("--all-mappers", action="store_true",
+                       help="aggregate over all five mappers, into figure_4/all_mappers/")
     main(ap.parse_args().mapper)

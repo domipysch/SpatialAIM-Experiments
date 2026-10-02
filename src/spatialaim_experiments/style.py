@@ -41,7 +41,7 @@ C_RECON = "#543005"
 C_SPATIAL = "#C51B7D"
 C_COHERENCE = "#3F007D"
 
-# The cell-type families of figures 2.1, 2.2 and 2.4's sketches.
+# The cell-type families of figures 2.1, 2.3 and 2.4's sketches.
 C_GLUT = "#D55E00"
 C_GABA = "#0072B2"
 C_NONN = "#009E73"
@@ -59,7 +59,7 @@ MAPPER_COLOURS = {
 }
 # How a mapper is written wherever a figure names it.
 MAPPER_LABELS = {
-    "nearest_centroid": "nearest centroid",
+    "nearest_centroid": "Nearest centroid",
     "wann": "WANN",
     "tangram": "Tangram",
     "tacco": "TACCO",
@@ -92,7 +92,7 @@ REFERENCE_LABELS = {
 
 # Difference in how many cell types a mapping used, on its own hue pair so that
 # nobody reads it as a cosine: purple = SpatialAIM used fewer, green = more. Shared by
-# figures 2.3 and 2.4, which both carry that quantity.
+# figures 2.2 and 2.4, which both carry that quantity.
 CMAP_DK = mpl.colors.LinearSegmentedColormap.from_list(
     "aim_dk", ["#3F007D", "#8C3CC8", "#C9A6E8", "#FFFFFF",
                "#A9DFCC", "#009E73", "#00543C"])
@@ -103,8 +103,8 @@ DK_LIMIT = 20
 
 # The figures print at the paper's 5.17 in text width, so a 7.2 in drawing is
 # scaled by 0.71 and every point size is authored 1/0.71 larger than it should
-# print: 9.2 pt here comes out as 6.5 pt on the page. Figures 2.3 and 2.4 are
-# authored at that size; figure 2.2's panel modules set their own, smaller base.
+# print: 9.2 pt here comes out as 6.5 pt on the page. Figures 2.2 and 2.4 are
+# authored at that size; figure 2.3's panel modules set their own, smaller base.
 PAPER_RCPARAMS = {
     "font.size": 9.2, "axes.titlesize": 9.2, "axes.labelsize": 9.2,
     "xtick.labelsize": 8.5, "ytick.labelsize": 8.5, "legend.fontsize": 8.0,

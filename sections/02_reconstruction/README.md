@@ -1,4 +1,4 @@
-# Section 03 — Reconstruction and granularity against the annotation (Fig. 2.3)
+# Section 02 — Reconstruction and granularity against the annotation (Fig. 2.2)
 
 All data comes from `experiment1/`, reduced to one tidy table by `spatialaim_experiments.exp1`.
 
@@ -10,8 +10,8 @@ a paired comparison *within* a reference, aggregated per reference.
 ## Running it
 
 ```bash
-python sections/03_reconstruction/panels.py          # four panels + panels.json
-python sections/03_reconstruction/make_excalidraw.py # create excalidraw
+python sections/02_reconstruction/panels.py          # four panels + panels.json
+python sections/02_reconstruction/make_excalidraw.py # create excalidraw
 ```
 
 It reads `Data/02_Results/experiment1/summary/best_per_run.csv`, pulled from the cluster
@@ -24,7 +24,8 @@ result, e.g. the one-pair test.
 |---|---|
 | `delta_spot`, `delta_gene` | Δ cosine similarity, SpatialAIM − annotation, on a scale whose near-white band is stretched to ±0.1: almost every cell lies inside it, which is the row's point |
 | `delta_k` | Δ number of cell types it took, clipped at ±20 (MTG runs to +69) |
-| `mappers` | the five mappers at their own proposal, centred within each reference — the only way five mappers compare across ten incommensurable references |
+| `mappers_cell`, `mappers_gene` | panels b, c: the five mappers at their own proposal, centred within each reference — the only way five mappers compare across ten incommensurable references; per cell and per gene, on one shared y axis labelled once in b |
+| `umaps/{start,ward,average}.png` | row f–h: screenshots taken by hand from the GUI, not written by `panels.py`; kept in `Excalidraw/figure_2/umaps/` and placed by `make_excalidraw.py` at the row width |
 
 Rows of the heat maps are mapper × linkage; their columns are the ten references.
 The mapper names are drawn in Excalidraw, not in the images, so the three heat

@@ -1,4 +1,4 @@
-# Builds the perturbed reference for Results 2.2 (robustness).
+# Builds the perturbed reference for Results 2.3 (robustness).
 #
 # Pair 1: scRNA 01_mouse-ssp (5665 x 45768) x ST 01_mouse-ssp (osmFISH, 4839 x 33),
 # from Data/01_Datasets_Paper; writes Data/01_Datasets_Paper/Robustness/{split.h5ad,

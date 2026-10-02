@@ -1,9 +1,9 @@
-# The whole Results 2.2 figure for one mapper, from the runs on disk:
+# The whole Results 2.3 figure for one mapper, from the runs on disk:
 #
 #   02a_analyse_invisible_split.py    the numbers    -> robustness/_analysis/<mapper>/
 #   02b_panels.py                     the panel PNGs -> robustness/plots/<mapper>/, copied to
-#                                                       Excalidraw/figure_2/<mapper>/panels/
-#   02c_make_excalidraw.py            the drawing    -> Excalidraw/figure_2/<mapper>/figure_2_<mapper>.excalidraw.md
+#                                                       Excalidraw/figure_3/<mapper>/panels/
+#   02c_make_excalidraw.py            the drawing    -> Excalidraw/figure_3/<mapper>/figure_3_<mapper>.excalidraw.md
 #
 # WARNING: 02c_make_excalidraw.py overwrites the drawing, hand edits included. Run it
 # for a mapper whose drawing you have since edited in Obsidian only if you mean

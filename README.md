@@ -10,8 +10,8 @@ experiment1/            the prerequisite sweep: every pair x start mode x tree x
 sections/               one folder per results section of the paper, each holding
                         the runs it needs and the scripts that draw its figure
   01_overview/          Fig. 2.1  what SpatialAIM does            (hand-drawn)
-  02_robustness/        Fig. 2.2  annotation granularity   (own runs, pair 1)
-  03_reconstruction/    Fig. 2.3  reconstruction & granularity vs the annotation
+  02_reconstruction/    Fig. 2.2  reconstruction & granularity vs the annotation
+  03_robustness/        Fig. 2.3  annotation granularity   (own runs, pair 1)
   04_biology/           Fig. 2.4  biological & topological plausibility
 src/spatialaim_experiments/    the helpers every section shares (installed, see below)
 ```

@@ -1,4 +1,4 @@
-# The three Results 2.2 sweeps on pair 1 (01_mouse-ssp x 01_mouse-ssp), all average
+# The three Results 2.3 sweeps on pair 1 (01_mouse-ssp x 01_mouse-ssp), all average
 # linkage, for one spot-to-state mapper or all five (-All):
 #
 #   original_annotation          obs["cellType"] of 01_mouse-ssp, 3 types -> K = 3..1

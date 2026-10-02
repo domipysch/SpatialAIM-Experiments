@@ -70,13 +70,13 @@ def outputs(section: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# one results figure, by its number ("2" for Fig. 2.2), optionally per mapper;
+# one results figure, by its number ("3" for Fig. 2.3), optionally per mapper;
 # one folder per figure in the vault, a mapper's copy in a subfolder of it:
 #
-#   Excalidraw/figure_2/figure_2.excalidraw.md        the drawing
-#   Excalidraw/figure_2/panels/                        the PNGs it embeds
-#   Excalidraw/figure_2/dot/figure_2_dot.excalidraw.md the same figure for DOT
-#   Excalidraw/figure_2/dot/panels/
+#   Excalidraw/figure_3/figure_3.excalidraw.md        the drawing
+#   Excalidraw/figure_3/panels/                        the PNGs it embeds
+#   Excalidraw/figure_3/dot/figure_3_dot.excalidraw.md the same figure for DOT
+#   Excalidraw/figure_3/dot/panels/
 # ---------------------------------------------------------------------------
 
 def figure_dir(figure: str, mapper: str | None = None) -> Path:

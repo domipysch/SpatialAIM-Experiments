@@ -1,12 +1,16 @@
 """
 Panels of the reconstruction figure (figure 3), each as its own PNG, for assembly
-in Excalidraw (Excalidraw/figure_3/figure_3.excalidraw.md).
+in Excalidraw (Excalidraw/figure_2/figure_2.excalidraw.md).
 
     a  delta_spot   Δ cosine similarity per spot, SpatialAIM (proposed K) - annotation (K = T)
        delta_gene   the same per gene
        delta_k      Δ number of cell types it took
                     rows: mapper x tree; columns: the ten references
-    b  mappers      the five mappers at their own proposal, centred within each pair
+    b  mappers_cell the five mappers at their own proposal, centred within each pair,
+                    per cell (the spot metric)
+    c  mappers_gene the same per gene, on b's y axis
+    d  runtime      what each mapper costs
+    e  memory
 
 Absolute cosine similarity is not comparable across references (33-gene against
 981-gene panels), so every panel is a comparison *within* a reference, averaged
@@ -35,7 +39,7 @@ from spatialaim_experiments.style import (
     use_paper_rcparams,
 )
 
-FIGURE = "3"
+FIGURE = "2"
 LEIDEN_TAG = "leiden_res3.0"
 METRIC_SPOT, METRIC_GENE = "cossim_hard_raw_spot", "cossim_hard_raw_gene"
 
@@ -46,13 +50,24 @@ panels = PanelWriter(paths.panel_dir(FIGURE))
 # of each image holds the rotated reference names, the bottom the colour bar.
 HEAT_SIZE = (2.13, 2.65)
 HEAT_BAR = (0.12, 0.185, 0.76, 0.028)
-# Row (b): the mapper comparison and the two cost panels, one plotting band for all
-# three (same height and vertical fractions); with two 0.1 in gaps as wide as row (a),
-# 7.0 in. The plotting box must be at least as tall as the rotated y-labels are long.
-MAPPER_SIZE = (4.3, 2.14)
-MAPPER_AXES = (0.735 / 4.3, 0.215, 3.495 / 4.3, 0.757)
-COST_SIZE = (1.25, 2.14)
-COST_AXES = (0.60 / 1.25, 0.215, 0.60 / 1.25, 0.757)
+# Row (b-e): the mapper comparison, per cell and per gene, and the two cost panels,
+# one plotting band for all four (same height and vertical fractions); with three
+# 0.1 in gaps as wide as row (a), 7.0 in. The plotting box must be at least as tall as the rotated y-labels are long.
+# The band is 1.62 in tall (was 2.14, squashed to make room for row f-h). The
+# plotting box is 1.28 in -- which is why "all K" moved from the runtime label
+# into its heading in make_excalidraw.py -- and the margin below holds one line
+# of x labels, since b and c say per cell / per gene in their headings.
+BAND_H, BAND_BELOW, BAND_ABOVE = 1.62, 0.28, 0.06
+BAND_Y = (BAND_BELOW / BAND_H, (BAND_H - BAND_BELOW - BAND_ABOVE) / BAND_H)
+# The mapper comparison is split in two that share one y axis: (b) carries its
+# ticks and label, (c) only the spine and ticks, set 0.05 in in. The two plotting
+# boxes are equally wide, together the 4.3 in the single panel had less one gap.
+MAPPER_LEFT, MAPPER_INSET = 0.735, 0.05
+MAPPER_PLOT = (4.3 - 0.1 - MAPPER_LEFT - MAPPER_INSET) / 2
+MAPPER_SIZES = {"mappers_cell": (MAPPER_LEFT + MAPPER_PLOT, BAND_H),
+                "mappers_gene": (MAPPER_INSET + MAPPER_PLOT, BAND_H)}
+COST_SIZE = (1.25, BAND_H)
+COST_AXES = (0.60 / 1.25, BAND_Y[0], 0.60 / 1.25, BAND_Y[1])
 
 # Δ cosine: a fixed scale, not one fitted to the data -- almost every cell is near
 # zero, which is the row's point, and autoscaling would turn that noise into colour.
@@ -150,7 +165,7 @@ def panel_heat(matrix: pd.DataFrame, name: str, scale: dict, unit: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# (b) the five mappers at their own proposal
+# (b, c) the five mappers at their own proposal
 # ---------------------------------------------------------------------------
 
 def centred(df: pd.DataFrame, metric: str) -> pd.Series:
@@ -190,32 +205,43 @@ def mapper_box(ax, values, position: float, width: float, mapper: str,
 
 
 def panel_mappers(df: pd.DataFrame) -> None:
-    """Four groups (metric x tree), one box per mapper in each; a box holds the
-    ten references' values."""
-    groups = [(centred(df, metric), label, tree)
-              for metric, label in ((METRIC_SPOT, "per spot"), (METRIC_GENE, "per gene"))
-              for tree in TREES]
-    fig = plt.figure(figsize=MAPPER_SIZE)
-    ax = fig.add_axes(MAPPER_AXES)
-    ax.axhline(0, color=PALE, lw=0.8, zorder=1)
-    for g, (offsets, _, tree) in enumerate(groups):
-        for m, mapper in enumerate(MAPPERS):
-            values = offsets.xs((mapper, tree), level=("mapper", "tree")).to_numpy()
-            mapper_box(ax, values, g + (m - 2) * 0.17, 0.15, mapper)
-    ax.set_xticks(range(len(groups)))
-    ax.set_xticklabels([f"{label}\n{TREE_LABELS[tree]} linkage" for _, label, tree in groups])
-    ax.set_xlim(-0.55, len(groups) - 0.45)
-    ax.set_ylabel("Δ cosine similarity\nvs mean across mappers")
-    bare(ax)
-    panels.save(fig, "mappers")
+    """Two panels, per cell (b) and per gene (c), on one y axis. Each has two
+    groups (tree), one box per mapper in each; a box holds the ten references'
+    values."""
+    axes = {}
+    for name, metric in (("mappers_cell", METRIC_SPOT), ("mappers_gene", METRIC_GENE)):
+        w, h = MAPPER_SIZES[name]
+        left = MAPPER_LEFT if name == "mappers_cell" else MAPPER_INSET
+        fig = plt.figure(figsize=(w, h))
+        ax = fig.add_axes((left / w, BAND_Y[0], MAPPER_PLOT / w, BAND_Y[1]))
+        ax.axhline(0, color=PALE, lw=0.8, zorder=1)
+        offsets = centred(df, metric)
+        for g, tree in enumerate(TREES):
+            for m, mapper in enumerate(MAPPERS):
+                values = offsets.xs((mapper, tree), level=("mapper", "tree")).to_numpy()
+                mapper_box(ax, values, g + (m - 2) * 0.17, 0.15, mapper)
+        ax.set_xticks(range(len(TREES)))
+        ax.set_xticklabels([f"{TREE_LABELS[tree].capitalize()} linkage" for tree in TREES])
+        ax.set_xlim(-0.55, len(TREES) - 0.45)
+        bare(ax)
+        axes[name] = (fig, ax)
+    # the shared axis: both span what either needs, and only (b) is labelled
+    lows, highs = zip(*(ax.get_ylim() for _, ax in axes.values()))
+    for name, (fig, ax) in axes.items():
+        ax.set_ylim(min(lows), max(highs))
+        if name == "mappers_cell":
+            ax.set_ylabel("Δ cosine similarity\nvs mapper mean")
+        else:
+            ax.tick_params(axis="y", labelleft=False)
+        panels.save(fig, name)
 
 
 # ---------------------------------------------------------------------------
-# (c, d) what each mapper costs
+# (d, e) what each mapper costs
 # ---------------------------------------------------------------------------
 
 def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFrame:
-    """One cost value per (reference, mapper), for the boxes of panels c and d.
+    """One cost value per (reference, mapper), for the boxes of panels d and e.
 
     Input
         res     resources_stage_b.csv (exp1.resources("b")): one row per mapping run
@@ -226,7 +252,7 @@ def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFr
 
     Output
         columns reference, mapper, value: the median over the reference's
-        pairs and both trees, Leiden starts only (the SpatialAIM runs of panel b).
+        pairs and both trees, Leiden starts only (the SpatialAIM runs of panels b and c).
     """
     runs = res[(res["start_tag"] == LEIDEN_TAG) & (res["status"] == "ok")]
     return (runs.groupby(["sc", "mapper"])[column].median().mul(unit)
@@ -259,7 +285,7 @@ def panel_cost(cost: pd.DataFrame, name: str, ylabel: str, log: bool) -> None:
 def main() -> None:
     df = exp1.load()
     panel_heat(heat_matrix(df, METRIC_SPOT, "delta"), "delta_spot", DELTA_SCALE,
-               "Δ cosine similarity per spot\n(SpatialAIM − annotation)")
+               "Δ cosine similarity per cell\n(SpatialAIM − annotation)")
     panel_heat(heat_matrix(df, METRIC_GENE, "delta"), "delta_gene", DELTA_SCALE,
                "Δ cosine similarity per gene\n(SpatialAIM − annotation)")
     panel_heat(heat_matrix(df, METRIC_SPOT, "dk"), "delta_k", DK_SCALE,
@@ -268,9 +294,9 @@ def main() -> None:
 
     runs = exp1.resources("b")
     panel_cost(cost_per_reference(runs, "wall_s", 1 / 60), "runtime",
-               "Runtime over all K (min)", log=True)
+               "Runtime (min)", log=True)
     panel_cost(cost_per_reference(runs, "peak_rss_tree_mb", 1 / 1024), "memory",
-               "memory used (GB)", log=False)
+               "Memory used (GB)", log=False)
     panels.write_manifest()
 
 
