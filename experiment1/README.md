@@ -140,7 +140,7 @@ show no errors.
 
 This runs pair 1 (`01_mouse-ssp`) with one start of each kind into its own root `test/`: unit 0
 (Leiden start) and unit 1 (`ann_cellType`), so 2 scaffolds and 5 mappers × 2 trees × 2 units = 20
-runs. That covers both code paths and both roles of `best_per_run.csv` (`TEST_UNITS` in `grid.py`). Every
+runs. That covers both code paths and all roles of `best_per_run.csv` (`TEST_UNITS` in `grid.py`). Every
 command runs in `$WORK/spatialaim_exp1/code/experiment1`.
 
 ```bash
@@ -165,7 +165,7 @@ python 04_summarize.py
 Check before going on:
 - [ ] `03_status.py`: 22 / 22 done, 0 failed, **0 cache misses**.
 - [ ] `summary/meta.json`: `missing: 0`.
-- [ ] `summary/best_per_run.csv`: 20 rows, 10 `spatialaim` and 10 `baseline`.
+- [ ] `summary/best_per_run.csv`: 30 rows, 10 `spatialaim`, 10 `baseline`, 10 `annotation_best`.
 - [ ] `summary/resources_stage_b.csv`: tacco, dot and tangram rows
       `peak_rss_children_mb` > 0 (the aligner process was sampled); tangram `wall_s` minutes, not
       seconds.
@@ -276,7 +276,7 @@ only if you want the layout regenerated.
 
 | File | Content |
 |---|---|
-| `best_per_run.csv` | one row per stage-B run root at the K that matters: `spatialaim` (Leiden, K = `best.overall`) or `baseline` (annotation, K = T). Only what sections 03/04 read: `pair_id`, `reference`, `pair_dir`, `role`, `ann_key`, `tree`, `mapper`, `k`, `score_overall` and the six plotted metrics |
+| `best_per_run.csv` | one row per stage-B run root and compared K: `spatialaim` (Leiden, K = `best.overall`), `baseline` (annotation, K = T) and `annotation_best` (annotation, K = `best.overall`). Only what sections 03/04 read: `pair_id`, `reference`, `pair_dir`, `role`, `ann_key`, `tree`, `mapper`, `k`, `score_overall` and the six plotted metrics |
 | `all_k_per_run.csv.gz` | every `k_comparison.csv` row with the run's keys, for anything beyond the figures |
 | `resources_stage_b.csv` | per stage-B run: `wall_s`, `cpu_user_s`, `cpu_sys_s`, `peak_rss_tree_mb`, `peak_rss_proc_mb`, `peak_rss_children_mb`, host/CPU/GPU, plus `scaffold_build_s`, `scaffold_peak_rss_tree_mb` and `wall_with_scaffold_s` |
 | `resources_stage_a.csv` | per stage-A build: the same measurements plus `scaffold_s` (log-timed, to the cache write) and `scaffold_mb` |

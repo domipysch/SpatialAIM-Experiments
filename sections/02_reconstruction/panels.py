@@ -1,8 +1,12 @@
 """
-Panels of the reconstruction figure (figure 3), each as its own PNG, for assembly
+Panels of the reconstruction figure (figure 2), each as its own PNG, for assembly
 in Excalidraw (Excalidraw/figure_2/figure_2.excalidraw.md).
 
-    a  delta_spot   Δ cosine similarity per spot, SpatialAIM (proposed K) - annotation (K = T)
+SpatialAIM is, per pair, tree and mapper, the better-scoring (score_overall) of the
+Leiden start and the annotation start(s), each at its own K = best.overall
+(exp1.best_start).
+
+    a  delta_spot   Δ cosine similarity per spot, SpatialAIM - annotation (K = T)
        delta_gene   the same per gene
        delta_k      Δ number of cell types it took
                     rows: mapper x tree; columns: the ten references
@@ -173,7 +177,7 @@ def centred(df: pd.DataFrame, metric: str) -> pd.Series:
 
     Input
         df      best_per_run.csv: one row per run; only the SpatialAIM rows
-                (Leiden start, proposed K) are used
+                (better start, K = best.overall) are used
         metric  e.g. "cossim_hard_raw_spot"
 
     Output
@@ -252,7 +256,7 @@ def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFr
 
     Output
         columns reference, mapper, value: the median over the reference's
-        pairs and both trees, Leiden starts only (the SpatialAIM runs of panels b and c).
+        pairs and both trees, Leiden starts only (the full SpatialAIM pipeline).
     """
     runs = res[(res["start_tag"] == LEIDEN_TAG) & (res["status"] == "ok")]
     return (runs.groupby(["sc", "mapper"])[column].median().mul(unit)
@@ -283,7 +287,7 @@ def panel_cost(cost: pd.DataFrame, name: str, ylabel: str, log: bool) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    df = exp1.load()
+    df = exp1.best_start(exp1.load())
     panel_heat(heat_matrix(df, METRIC_SPOT, "delta"), "delta_spot", DELTA_SCALE,
                "Δ cosine similarity per cell\n(SpatialAIM − annotation)")
     panel_heat(heat_matrix(df, METRIC_GENE, "delta"), "delta_gene", DELTA_SCALE,

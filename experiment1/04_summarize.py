@@ -4,7 +4,7 @@ Summarize all results from Experiment1 into a few csvs.
 This script only reads the run folders and edits/writes nothing outside ``summary/``.
 
 Produces:
-    summary/best_per_run.csv          one row per stage-B run, (start-from-annotation: K=T, overclustering: best overall score)
+    summary/best_per_run.csv          per stage-B run the compared K: annotation start K = T and best overall, Leiden start best overall
     summary/all_k_per_run.csv.gz      every k_comparison.csv row, with the run's keys
     summary/resources_stage_b.csv     time + memory per stage-B run, with its scaffold's cost
     summary/resources_stage_a.csv     time + memory per stage-A scaffold build
@@ -40,27 +40,27 @@ MEASURED = ["status", "wall_s", "cpu_user_s", "cpu_sys_s", "peak_rss_tree_mb",
 SCAFFOLD_ONLY = ["scaffold_s", "scaffold_mb"]
 
 
-def figure_row(run: pd.Series) -> dict | None:
-    """The one K of a run that the figures compare:
+def figure_rows(run: pd.Series) -> list[dict]:
+    """The K of a run that the figures compare:
 
-        baseline     annotation start, K = T (the identity cut)
-        spatialaim   Leiden start, K = best.overall of k_selection.json
+        baseline          annotation start, K = T (the identity cut)
+        annotation_best   annotation start, K = best.overall of k_selection.json
+        spatialaim        Leiden start, K = best.overall of k_selection.json
     """
     table = pd.read_csv(ROOT / run["run_id"] / "k_comparison.csv")
     table = table.set_index(table["k"].astype(int))
+    selection = json.loads((ROOT / run["run_id"] / "k_selection.json").read_text(encoding="utf-8"))
+    best = (selection.get("best") or {}).get("overall")
+    best_k = int(best["k"]) if best is not None and int(best["k"]) in table.index else None
     if run["ann_key"]:
-        role, k = "baseline", int(table.index.max())
+        roles = [("baseline", int(table.index.max())), ("annotation_best", best_k)]
     else:
-        selection = json.loads((ROOT / run["run_id"] / "k_selection.json").read_text(encoding="utf-8"))
-        best = (selection.get("best") or {}).get("overall")
-        if best is None or int(best["k"]) not in table.index:
-            return None
-        role, k = "spatialaim", int(best["k"])
-    row = table.loc[k]
-    return {"pair_id": run["pair_id"], "reference": run["sc"], "pair_dir": run["pair_dir"],
-            "role": role, "ann_key": run["ann_key"], "tree": run["tree"], "mapper": run["mapper"],
-            "k": k, "score_overall": float(row["overall"]),
-            **{m: float(row.get(m, float("nan"))) for m in METRICS}}
+        roles = [("spatialaim", best_k)]
+    return [{"pair_id": run["pair_id"], "reference": run["sc"], "pair_dir": run["pair_dir"],
+             "role": role, "ann_key": run["ann_key"], "tree": run["tree"], "mapper": run["mapper"],
+             "k": k, "score_overall": float(table.loc[k, "overall"]),
+             **{m: float(table.loc[k].get(m, float("nan"))) for m in METRICS}}
+            for role, k in roles if k is not None]
 
 
 def measured(run: pd.Series, fields: list[str]) -> dict:
@@ -85,8 +85,8 @@ def main() -> None:
     runs.loc[~runs["done"], KEYS + ["stage"]].to_csv(OUT / "missing.csv", index=False)
 
     # best_per_run.csv
-    figure_rows = [r for _, run in mapping.iterrows() if (r := figure_row(run)) is not None]
-    figure = (pd.DataFrame(figure_rows)
+    rows = [r for _, run in mapping.iterrows() for r in figure_rows(run)]
+    figure = (pd.DataFrame(rows)
               .sort_values(["pair_id", "role", "ann_key", "tree", "mapper"], na_position="first")
               .reset_index(drop=True))
     figure.to_csv(OUT / "best_per_run.csv", index=False)

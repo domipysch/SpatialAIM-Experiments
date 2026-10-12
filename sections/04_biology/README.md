@@ -11,6 +11,13 @@ Chance is 0 for all four by construction: the spatial pair are z-scores against 
 spot-label shuffle, and modularity is the excess over a degree-preserving random
 partition. 
 
+SpatialAIM is, per pair, tree and mapper, the following configuration:
+- take from the Leiden start the mapping at K = `best.overall`
+- take from the annotation start(s) mapping at K = `best.overall`
+- out of those, select the mapping with the best overall score
+
+The annotation it is compared with is at K = T. The cost panels(d, e) time the Leiden runs, the full pipeline.
+
 ## Running it
 
 One plot per figure via `--mapper`.
