@@ -27,10 +27,12 @@ OUT = ROOT / "summary"
 # the keys every per-run table carries
 KEYS = ["run_id", "pair_id", "pair_dir", "sc", "st", "start_tag", "ann_key", "tree", "mapper"]
 
-# the metrics the figures plot: reconstruction (section 03), biology and topology (section 04)
+# the metrics the figures plot: reconstruction (section 03), biology and topology (section 04),
+# plus shape consistency (NaN for slices without a segmentation mask, and for runs from
+# before the metric existed, whose k_comparison.csv has no "shape" column)
 METRICS = ["cossim_hard_raw_spot", "cossim_hard_raw_gene",
            "nhood_mean_self_zscore", "local_purity_zscore",
-           "modularity_st_expression", "modularity_shared"]
+           "modularity_st_expression", "modularity_shared", "shape"]
 
 # the fields of resources.json that go into resources_stage_b.csv / resources_stage_a.csv
 MEASURED = ["status", "wall_s", "cpu_user_s", "cpu_sys_s", "peak_rss_tree_mb",
