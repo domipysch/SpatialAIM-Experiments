@@ -276,7 +276,7 @@ only if you want the layout regenerated.
 
 | File | Content |
 |---|---|
-| `best_per_run.csv` | one row per stage-B run root and compared K: `spatialaim` (Leiden, K = `best.overall`), `baseline` (annotation, K = T) and `annotation_best` (annotation, K = `best.overall`). Only what sections 03/04 read: `pair_id`, `reference`, `pair_dir`, `role`, `ann_key`, `tree`, `mapper`, `k`, `score_overall` and the six plotted metrics |
+| `best_per_run.csv` | one row per stage-B run root and compared K: `spatialaim` (Leiden, K = `best.overall`), `baseline` (annotation, K = T) and `annotation_best` (annotation, K = `best.overall`). Only what sections 03/04 read: `pair_id`, `reference`, `pair_dir`, `role`, `ann_key`, `tree`, `mapper`, `k`, `score_overall`, the six plotted metrics and `shape` (shape consistency; NaN without a segmentation mask or for runs from before the metric) |
 | `all_k_per_run.csv.gz` | every `k_comparison.csv` row with the run's keys, for anything beyond the figures |
 | `resources_stage_b.csv` | per stage-B run: `wall_s`, `cpu_user_s`, `cpu_sys_s`, `peak_rss_tree_mb`, `peak_rss_proc_mb`, `peak_rss_children_mb`, host/CPU/GPU, plus `scaffold_build_s`, `scaffold_peak_rss_tree_mb` and `wall_with_scaffold_s` |
 | `resources_stage_a.csv` | per stage-A build: the same measurements plus `scaffold_s` (log-timed, to the cache write) and `scaffold_mb` |

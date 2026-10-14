@@ -66,8 +66,8 @@ SCAFFOLD_FILES = ("reference_scaffold.h5ad", "reference_scaffold.meta.json")
 RUN_ROOT_FILES = ("config.yaml", "k_comparison.csv", "k_selection.json")
 K_ZIP = "k_levels.zip"
 # Per-K files left out of the zip: they scale with the number of spots.
-PER_SPOT = ("*.h5ad", "spot_to_state_mapping*.csv", "onehot_per_row_mapping.csv",
-            "cossim-per-spot-*", "confidence_per_spot.csv")
+PER_SPOT = ("*.h5ad", "spot_to_state_mapping*.csv", "cossim-per-spot-*",
+            "coherence_per_spot.csv")
 ZIP_MAX_FILE_MB = 2  # any other per-K file above this is left out too (and counted)
 LOG_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{3}) - ")
 
@@ -271,7 +271,7 @@ def _context(row: dict, cmd: list[str]) -> dict:
 
 def zip_k_levels(root: Path, dest: Path) -> dict:
     """Pack the small files of every ``k_*/`` under ``root`` into ``dest``
-    (paths kept relative to ``root``, e.g. ``k_012/analysis/data/biology_metrics.json``)."""
+    (paths kept relative to ``root``, e.g. ``k_012/analysis/data/topology_metrics.json``)."""
     n_files = n_skipped_large = 0
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(root.glob("k_*/**/*")):
