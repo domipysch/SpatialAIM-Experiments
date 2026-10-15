@@ -18,13 +18,20 @@ SpatialAIM is, per pair, tree and mapper, the following configuration:
 
 The annotation it is compared with is at K = T. The cost panels(d, e) time the Leiden runs, the full pipeline.
 
+The nearest-centroid version opens with a top row the others do not have: the
+win counts (one bar per metric) next to a worked example, the kidney mapped as
+annotated and by SpatialAIM — see `04_kidney_example/README.md`.
+
 ## Running it
 
 One plot per figure via `--mapper`.
 
 ```bash
-python sections/04_biology/panels.py --mapper wann             # seven panels + panels.json
+python sections/04_biology/panels.py --mapper wann             # panels + panels.json
 python sections/04_biology/make_excalidraw.py --mapper wann    # create excalidraw figure
 python sections/04_biology/panels.py --all-mappers              # the same, aggregated over all five
 python sections/04_biology/make_excalidraw.py --all-mappers
 ```
+
+For nearest centroid, run the kidney example first (`04_kidney_example/01_run_mappings.py`,
+then `02_panels.py`); `make_excalidraw.py` stops with a hint if its maps are missing.

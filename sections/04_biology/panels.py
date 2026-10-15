@@ -7,10 +7,12 @@ SpatialAIM is, per pair, tree and mapper, the better-scoring (score_overall) of 
 Leiden start and the annotation start(s), each at its own K = best.overall
 (exp1.best_start). The annotation it is compared with is at K = T.
 
-A row of four bar plots, then two rows of three, one row per criterion:
+An optional top row, then two rows of three, one row per criterion:
 
-    a-d wins_<metric>                   per mapper, on how many references SpatialAIM beats the
-                                        annotation -- one per metric, in the order of f, g, i, j
+       wins                             on how many references SpatialAIM beats the
+                                        annotation, one bar per metric, for this mapper
+                                        (the top row, next to the kidney example of
+                                        04_kidney_example/; only drawn for nearest centroid)
     e  sketch_spatial                   what spatial organisation means, on a toy tissue patch
     f  plaus_nhood_mean_self_zscore     SpatialAIM against the annotation, neighbourhood enrichment
     g  plaus_local_purity_zscore        the same, local spatial purity
@@ -19,8 +21,7 @@ A row of four bar plots, then two rows of three, one row per criterion:
     j  plaus_modularity_shared          modularity over the reference's cells
        dk_bar                           the colour bar all four scatters share
 
-The bar plots always show all five mappers, so they are the same in every version
-of the figure.
+(Letters as in the version without the top row; make_excalidraw.py hands them out.)
 
     python sections/04_biology/panels.py --mapper wann
     python sections/04_biology/panels.py --all-mappers
@@ -39,7 +40,6 @@ from spatialaim_experiments.style import (
     DK_LIMIT,
     INK,
     MAPPER_COLOURS,
-    MAPPER_LABELS,
     MAPPERS,
     PALE,
     PanelWriter,
@@ -94,13 +94,20 @@ SKETCH_AXES = {"sketch_spatial": ("x", "y"), "sketch_coherence": ("UMAP 1", "UMA
 
 BAR_SIZE = (3.45, 0.66)
 
-# Win counts: four panels on one y axis. (a) carries the tick labels and the axis
-# title, (b-d) only the spine and ticks, so all four plotting boxes are equally
-# wide. The foot holds the mapper names, set vertically.
-WINS_PLOT = (1.38, 0.8)
-WINS_LEFT, WINS_INSET = 0.72, 0.12
-WINS_BAR = 0.55       # bar width, of the 1 between two mappers
-WINS_RIGHT, WINS_FOOT, WINS_TOP = 0.04, 0.62, 0.08
+# Win counts: one panel, a bar per metric, all in the mapper's own colour. It shares the top row with the kidney
+# maps of 04_kidney_example/, so it is exactly as tall as they are (2.3 in wide
+# maps of a 1150 x 812 px section). The bars are horizontal, so the metric names
+# read left of them as normal text; the foot holds the count axis and its title.
+WINS_HEIGHT = 2.3 * 812 / 1150
+WINS_LEFT, WINS_PLOT_W, WINS_RIGHT = 1.12, 0.72, 0.12
+WINS_FOOT, WINS_TOP = 0.50, 0.08
+WINS_BAR = 0.6        # bar height, of the 1 between two metrics
+WINS_LABELS = {
+    "nhood_mean_self_zscore": "Neighbourhood\nenrichment",
+    "local_purity_zscore": "Local spatial\npurity",
+    "modularity_st_expression": "Modularity\nin spatial data",
+    "modularity_shared": "Modularity\nin reference",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -241,40 +248,36 @@ def wins(df: pd.DataFrame, metric: str) -> pd.DataFrame:
     return ref.groupby("mapper").agg(wins=("win", "sum"), n=("win", "size")).reindex(MAPPERS)
 
 
-def panel_wins(counts: dict[str, pd.DataFrame]) -> None:
-    """One bar plot per metric, all on the y axis of the first: a bar per mapper,
-    and a pale line at half the references, where SpatialAIM and the annotation are
+def panel_wins(counts: dict[str, pd.DataFrame], mapper: str) -> None:
+    """One bar per metric: on how many references SpatialAIM beats the annotation
+    with ``mapper``, and a pale line at half the references, where the two are
     even. A reference is a win when SpatialAIM's value is strictly higher."""
-    n = max(int(c["n"].max()) for c in counts.values())
-    ticks = [0, n / 2, n]          # none, half (the pale line) and all of the references
-    for i, (metric, count) in enumerate(counts.items()):
-        left = WINS_LEFT if i == 0 else WINS_INSET
-        w = left + WINS_PLOT[0] + WINS_RIGHT
-        h = WINS_FOOT + WINS_PLOT[1] + WINS_TOP
-        fig = plt.figure(figsize=(w, h))
-        ax = fig.add_axes((left / w, WINS_FOOT / h, WINS_PLOT[0] / w, WINS_PLOT[1] / h))
-        ax.axhline(n / 2, color=PALE, lw=0.8, zorder=1)
-        ax.bar(range(len(MAPPERS)), count["wins"], width=WINS_BAR, zorder=2,
-               color=[MAPPER_COLOURS[m] for m in MAPPERS])
-        ax.set_xticks(range(len(MAPPERS)))
-        ax.set_xticklabels([MAPPER_LABELS[m].replace(" ", "\n") for m in MAPPERS],
-                           rotation=90, linespacing=1.0)
-        ax.set_xlim(-0.6, len(MAPPERS) - 0.4)
-        ax.set_ylim(0, n)
-        ax.yaxis.set_major_locator(mpl.ticker.FixedLocator(ticks))
-        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        if i == 0:
-            # centred on the whole image, not the plotting box: the box is
-            # shorter than the label, the empty corner beside the mapper names
-            # is not
-            fig.text(0.03 / w, 0.5, "#References\nwhere SpatialAIM\nimproves metric",
-                     rotation=90, ha="left", va="center", linespacing=1.05,
-                     fontsize=mpl.rcParams["axes.labelsize"])
-        else:
-            ax.tick_params(axis="y", labelleft=False)
-        ax.tick_params(pad=1.5)
-        bare(ax)
-        panels.save(fig, f"wins_{metric}")
+    metrics = list(counts)
+    wins_ = [int(counts[m].loc[mapper, "wins"]) for m in metrics]
+    n = max(int(counts[m].loc[mapper, "n"]) for m in metrics)
+    w = WINS_LEFT + WINS_PLOT_W + WINS_RIGHT
+    h = WINS_HEIGHT
+    fig = plt.figure(figsize=(w, h))
+    ax = fig.add_axes((WINS_LEFT / w, WINS_FOOT / h,
+                       WINS_PLOT_W / w, (h - WINS_FOOT - WINS_TOP) / h))
+    ax.axvline(n / 2, color=PALE, lw=0.8, zorder=1)
+    ax.barh(range(len(metrics)), wins_, height=WINS_BAR, zorder=2,
+            color=MAPPER_COLOURS[mapper])
+    ax.set_yticks(range(len(metrics)))
+    ax.set_yticklabels([WINS_LABELS[m] for m in metrics], linespacing=1.0)
+    ax.set_ylim(len(metrics) - 0.4, -0.6)      # first metric on top, as in the rows below
+    ax.set_xlim(0, n)
+    # none, half (the pale line) and all of the references
+    ax.xaxis.set_major_locator(mpl.ticker.FixedLocator([0, n / 2, n]))
+    ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    # centred on the whole image, not the plotting box: the box is narrower than
+    # the title, the empty corner under the metric names is not
+    fig.text(0.5, 0.02 / h, f"#References out of {n} where\nSpatialAIM improves metric",
+             ha="center", va="bottom", linespacing=1.05,
+             fontsize=mpl.rcParams["axes.labelsize"])
+    ax.tick_params(pad=1.5)
+    bare(ax)
+    panels.save(fig, "wins")
 
 
 # ---------------------------------------------------------------------------
@@ -383,7 +386,8 @@ def main(mapper: str | None) -> None:
     for metric, count in counts.items():
         logger.info("%-26s SpatialAIM better on %s", metric,
                     ", ".join(f"{m} {r.wins}/{r.n}" for m, r in count.iterrows()))
-    panel_wins(counts)
+    if mapper is not None:           # a per-mapper count; the aggregate has none
+        panel_wins(counts, mapper)
     for metric in METRICS:
         pr = comparisons(df, metric, mapper)
         cell = scatter_points(pr, metric)

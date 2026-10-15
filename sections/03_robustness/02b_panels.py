@@ -126,24 +126,33 @@ def cell_states(run: str, k: int) -> np.ndarray:
 # The whole argument of this figure is about one annotated cell type -- the one
 # that gets split, and the one an over-clustering resolves further. GABAergic and
 # Non-Neuronal cells carry no part of it, so every panel that draws cells greys
-# them out.
+# them out -- each in a grey of its own, so the panels still show that they are
+# distinct types, just not ones the figure is about.
 TARGET = "Glutamatergic"
 A, B = f"{TARGET}_A", f"{TARGET}_B"
 # The two phantom halves get hues of their own: neither is a cell type the
 # reference really has, so neither may wear the Glutamatergic orange.
 C_GLUT_A = "#E6C200"
 C_GLUT_B = "#8C3CC8"
-TYPE_COLOURS = {TARGET: C_GLUT, A: C_GLUT_A, B: C_GLUT_B}
+C_GABA = "#CFCFCF"    # light: the larger of the two background types
+# mid grey: two greys of similar weight could not be told apart, and with only 25
+# cells the type needs strong contrast to show at all -- but a charcoal was lost
+# against the navy of the deep-layer state in (h)
+C_NONN = "#7A7A7A"
+TYPE_COLOURS = {TARGET: C_GLUT, A: C_GLUT_A, B: C_GLUT_B,
+                "GABAergic": C_GABA, "Non-Neuronal": C_NONN}
+# A state that merges two of the background types sits between their two greys.
+C_GREY_MIXED = "#C2C2C2"
 
 
 def colour_of(label: str) -> str:
     """A cell's or spot's colour from its type name: the two halves merged read as
-    Glutamatergic, every other family is grey."""
+    Glutamatergic, the background types each have their own grey."""
     if label in TYPE_COLOURS:
         return TYPE_COLOURS[label]
     if set(p.strip() for p in label.split("+")) == {A, B}:
         return C_GLUT
-    return C_GREY
+    return C_GREY_MIXED
 
 
 # --------------------------------------------------------------------------
@@ -236,7 +245,9 @@ SCORES_RECT = [0.34, 0.30, 0.64, 0.665]
 # height of seven. Pitches and margins are print inches and reproduce the
 # original frame exactly at 15 columns x 7 rows.
 COL_PITCH, ROW_PITCH = 0.25, 0.155
-DOTS_MARGIN = dict(left=0.245, right=0.082, top=0.207, bottom=0.775)
+# left and bottom also hold the axis titles; the bottom one sits under the
+# longest rotated tick label ("L5/6 NP")
+DOTS_MARGIN = dict(left=0.405, right=0.082, top=0.207, bottom=0.68)
 DOT_SCALE = 70        # dot area per unit share, set by the row pitch above
 
 # The figure is placed at the paper's 5.17 in text width, so the whole drawing is
@@ -248,7 +259,8 @@ FS_ROW = 8.5
 
 # the key of the cell-type colours (02c_make_excalidraw.py draws it)
 TYPE_LEGEND = [("Glutamatergic", C_GLUT), ("Glut. A (Unedited)", C_GLUT_A),
-               ("Glut. B (+ marker panel)", C_GLUT_B)]
+               ("Glut. B (+ marker panel)", C_GLUT_B), ("GABAergic", C_GABA),
+               ("Non-neuronal", C_NONN)]
 
 # The inferred excitatory types, superficial -> deep. A ramp,
 # because they are ordered by cortical depth, but a blue one: the shades of
@@ -260,6 +272,39 @@ TYPE_LEGEND = [("Glutamatergic", C_GLUT), ("Glut. A (Unedited)", C_GLUT_A),
 # Tangram's K=7 leaves exactly these three, other mappers propose a higher K and
 # leave more, and the ramp has to keep reading as one.
 STATE_COLOURS = ["#A6CEE3", "#2C7FB8", "#08306B"]
+
+
+# The states that are not excitatory are greys in (h), one shade each: with K=7
+# and only three hues, the map would otherwise look as if it had four states, not
+# seven. Their greys follow the coarse greys of (a), (e): light ones around the
+# GABAergic grey for a state dominated by an inhibitory fine type, the charcoal
+# for a non-neuronal one.
+GABA_GREYS = ("#B0B0B0", "#E2E2E2")
+NONN_GREYS = (C_NONN, "#949494")
+
+
+def grey_ramp(n: int, ends: tuple[str, str]) -> list[str]:
+    """``n`` greys between ``ends``; the first end when ``n`` is one."""
+    ramp = LinearSegmentedColormap.from_list("greys", list(ends))
+    return [to_hex(ramp(0.0 if n == 1 else i / (n - 1))) for i in range(n)]
+
+
+def other_state_greys(fractions: pd.DataFrame, shown) -> tuple[dict, list]:
+    """A grey per state not in ``shown``, by the family of its dominant fine type,
+    in state order within a family -- and the key entries for them, one per
+    family present: (label, its greys)."""
+    others = [s for s in fractions.index if s not in set(shown)]
+    nonn = [s for s in others if fractions.loc[s].idxmax() == POOLED_NONN]
+    gaba = [s for s in others if s not in nonn]
+    greys, key = {}, []
+    for group, ends, family in ((gaba, GABA_GREYS, "GABAergic"),
+                                (nonn, NONN_GREYS, "Non-neuronal")):
+        if not group:
+            continue
+        shades = grey_ramp(len(group), ends)
+        greys.update(zip(sorted(group), shades))
+        key.append((family if len(group) == 1 else f"{family} ({len(group)})", shades))
+    return greys, key
 
 
 def state_ramp(n: int) -> list[str]:
@@ -383,6 +428,8 @@ def dots_panel(name: str, fractions: pd.DataFrame,
     ax.set_yticks(range(len(rows)))
     ax.set_yticklabels([str(i + 1) for i in range(len(rows))], fontsize=FS_ROW,
                        color="#1e1e1e")
+    ax.set_xlabel("Fine cell type (reference)", fontsize=FS_TICK, labelpad=3)
+    ax.set_ylabel("Found type", fontsize=FS_TICK, labelpad=4)
 
     # one bracket over all columns: they are the coarse type the figure is about
     trans = ax.get_xaxis_transform()
@@ -445,7 +492,8 @@ def main() -> None:
     # question throughout.
     states = excitatory_states(fractions)
 
-    colours = states["colour"].to_dict()
+    greys, other_key = other_state_greys(fractions, states.index)
+    colours = {**greys, **states["colour"].to_dict()}
     map_panel("map_overcluster_aim", xy,
               [colours.get(s, C_GREY)
                for s in spot_states(RUN_OVERCLUSTER, k_best)])
@@ -472,6 +520,8 @@ def main() -> None:
                         "name": states.loc[s, "name"],
                         "dominant": states.loc[s, "dominant"], "y": row_y[i]}
                        for i, s in enumerate(states.index)],
+            # the grey states of (h), keyed under the excitatory ones
+            "other_states": [[label, shades] for label, shades in other_key],
         },
     })
     logger.info("states:\n%s", states.to_string())

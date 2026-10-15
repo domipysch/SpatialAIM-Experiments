@@ -41,7 +41,7 @@ def annotation_best(df: pd.DataFrame) -> pd.DataFrame:
     """The annotation-start runs at K = best.overall: the ``annotation_best`` rows
     of best_per_run.csv, or, for a summary written before 04_summarize.py had
     them, the same rows rebuilt from all_k_per_run.csv.gz by the same rule
-    (highest ``overall``, ties to the smaller K, as kselection.best_k)."""
+    (highest ``overall``, ties to the smaller K, as compare_ks.selection._best_k)."""
     rows = df[df["role"] == "annotation_best"]
     if len(rows):
         return rows

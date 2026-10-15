@@ -31,7 +31,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from spatialaim.analysis.ksweep import compare_k_runs
+from spatialaim.analysis.compare_ks import compare_k_runs
 
 import grid
 import run_one

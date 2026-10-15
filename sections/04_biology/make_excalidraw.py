@@ -11,17 +11,20 @@
 # aggregated over all five (``--all-mappers``):
 # figure_4/<m>/panels/ -> figure_4/<m>/figure_4_<m>.excalidraw.md, m = mapper or all_mappers.
 #
-# An optional row of four bar plots, then two rows of three, one row per
-# criterion, and every cell its own panel:
+# An optional top row, then two rows of three, one row per criterion, and every
+# cell its own panel:
 #
-#   a-d  per mapper, how often SpatialAIM beats the annotation, one per metric
-#   e sketch | f neighbourhood enrichment | g local spatial purity
-#   h sketch | i modularity over the slice | j modularity over the reference
+#   a kidney, annotation | b kidney, SpatialAIM | c wins
+#   d sketch | e neighbourhood enrichment | f local spatial purity
+#   g sketch | h modularity over the slice | i modularity over the reference
 #
-# The bar row compares all five mappers, so it is drawn in one version only:
-# by default nearest centroid's (``--bars`` / ``--no-bars`` override). Without
-# it the letters start at the sketch, a-f. Letters are handed out in reading
-# order, so they never need renumbering by hand.
+# The top row is the worked example and the overview: one tissue mapped both
+# ways (04_kidney_example/, whose panels.json also supplies each map's key and
+# metrics), then on how many references SpatialAIM beats the annotation (one bar
+# per metric). It is drawn in one version only: by default nearest centroid's
+# (``--top-row`` / ``--no-top-row`` override). Without it the letters start at
+# the sketch, a-f. Letters are handed out in reading order, so they never need
+# renumbering by hand.
 #
 # Each row opens with a sketch of what its criterion means, drawn on a toy graph
 # with the same labels twice -- observed above, permuted below. Then the two
@@ -43,7 +46,7 @@ import logging
 
 from spatialaim_experiments import paths
 from spatialaim_experiments.excalidraw import WIDTH, Drawing, text_size, wrap
-from spatialaim_experiments.style import MAPPERS, SCALE
+from spatialaim_experiments.style import GREY, MAPPERS, SCALE
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +75,20 @@ BAR_GAP = 26
 # So are the line breaks, which balance the two lines where a greedy wrap would
 # leave one word alone -- ``wrap`` keeps a break that is already in the text and
 # is only the fallback for a caption that still does not fit its cell.
-# The bar plots, in the order of the scatters below them.
-WINS = [("wins_nhood_mean_self_zscore", "Neighbourhood enrichment"),
-        ("wins_local_purity_zscore", "Local spatial purity"),
-        ("wins_modularity_st_expression", "Modularity in spatial data"),
-        ("wins_modularity_shared", "Modularity in reference")]
-BARS_DEFAULT = {"nearest_centroid"}   # the versions that get the bar row
+TOP_ROW_DEFAULT = {"nearest_centroid"}   # the versions that get the top row
+# The top row's captions; {k} is the map's number of cell types.
+HEAD_WINS = "SpatialAIM against\nthe annotation"
+HEAD_MAPS = {"annotation": "Kidney, mapped\nannotation (K = {k})",
+             "spatialaim": "Kidney, mapped\nSpatialAIM (K = {k})"}
+# Under each map: its neighbourhood enrichment, then its key, both smaller than
+# a caption.
+FS_KEY = 32
+KEY_DOT = 22
+KEY_INDENT = 32       # dot to label
+KEY_GAP = 26          # between two entries on a line
+KEY_PITCH = FS_KEY * 1.25
+MAP_GAP = 10          # map bottom to the metric line
+ZOOM_GAP = 24         # zoom to the key beside it
 
 ROWS = [
     {
@@ -108,16 +119,71 @@ def text(body: str, x, y, size=FS_HEAD, colour=None, centre=False):
                         **({} if colour is None else {"colour": colour}))
 
 
-def image(name: str, x, y, manifest: dict) -> tuple[float, float]:
-    element = drawing.image(name, x, y, manifest)
+def image(name: str, x, y, manifest: dict, folder=None) -> tuple[float, float]:
+    element = drawing.image(name, x, y, manifest, folder)
     return element["width"], element["height"]
+
+
+def key_block(x: float, y: float, width: float, entries: list[dict]) -> float:
+    """A map's key: a dot and a label per entry, flowed left to right and
+    wrapped onto a new line when ``width`` is used up; a label wider than
+    ``width`` on its own is broken over lines. Returns the y below the key."""
+    cursor, line, line_h = x, y, KEY_PITCH
+    for entry in entries:
+        label = wrap(entry["label"], width - KEY_INDENT, FS_KEY)
+        w = KEY_INDENT + text_size(label, FS_KEY)[0]
+        if cursor > x and cursor + w > x + width:
+            cursor, line, line_h = x, line + line_h, KEY_PITCH
+        drawing.dot(cursor + KEY_DOT / 2, line + FS_KEY * 0.6, KEY_DOT, entry["colour"])
+        text(label, cursor + KEY_INDENT, line, size=FS_KEY)
+        line_h = max(line_h, text_size(label, FS_KEY)[1] + FS_KEY * 0.25)
+        cursor += w + KEY_GAP
+    return line + line_h
+
+
+def top_row(manifest: dict, kidney: dict, letters, y: float) -> float:
+    """a, b: the kidney mapped as annotated and by SpatialAIM, each with its
+    neighbourhood enrichment underneath, then its zoom (the boxed window) and its
+    key side by side; c: the win counts. The three
+    letters and captions share one line, the images the line below the tallest
+    caption, and the slack is split into two equal gaps. Returns the y of the
+    next row's letter line."""
+    folder = kidney["folder"]
+    w_wins = manifest["panels"]["wins"]["w"]
+    w_map = kidney["panels"]["map_annotation"]["w"]
+    gap = (WIDTH - 2 * PAD - w_wins - 2 * w_map) / 2
+    xs = [PAD, PAD + w_map + gap, PAD + 2 * w_map + 2 * gap]
+    sides = ["annotation", "spatialaim"]
+    heads = [HEAD_MAPS[s].format(k=kidney[s]["k"]) for s in sides] + [HEAD_WINS]
+    top = y + max(h.count("\n") + 1 for h in heads) * LINE + HEAD_GAP
+    for head, x in zip(heads, xs):
+        text(next(letters), x, y, size=FS_LETTER)
+        text(head, x + HEAD_DX, y + 9)
+
+    _w, h = image("wins", xs[2], top, manifest)
+    bottom = top + h
+    for side, x in zip(sides, xs[:2]):
+        _w, h_map = image(f"map_{side}", x, top, kidney, folder)
+        z = kidney[side]["metrics"]["nhood_mean_self_zscore"]
+        line = top + h_map + MAP_GAP
+        text(f"Neighbourhood enrichment z = {z:.0f}", x, line, size=FS_KEY, colour=GREY)
+        below = line + KEY_PITCH * 1.3
+        # the zoom (the window boxed on the map) at the left, the key beside it
+        if kidney.get("zoom"):
+            w_zoom, h_zoom = image(f"zoom_{side}", x, below, kidney, folder)
+            key_x, key_w = x + w_zoom + ZOOM_GAP, w_map - w_zoom - ZOOM_GAP
+            bottom = max(bottom, below + h_zoom)
+        else:
+            key_x, key_w = x, w_map
+        bottom = max(bottom, key_block(key_x, below, key_w, kidney[side]["key"]))
+    return bottom + ROW_GAP
 
 
 # --------------------------------------------------------------------------
 # the figure
 # --------------------------------------------------------------------------
 
-def build(manifest: dict, bars: bool) -> None:
+def build(manifest: dict, kidney: dict | None) -> None:
     panels = manifest["panels"]
     letters = iter("abcdefghijklmnopqrstuvwxyz")
     w_sketch = panels["sketch_spatial"]["w"]
@@ -130,21 +196,10 @@ def build(manifest: dict, bars: bool) -> None:
     xs = [PAD, PAD + w_sketch + gap, PAD + w_sketch + w_scatter + 2 * gap]
     widths = [w_sketch, w_scatter, w_scatter]
 
-    # ---------------- the bar plots, four across (optional) ----------------
-    # Same construction as the rows below: letters and captions on one line,
-    # the images on the line below the tallest caption, the slack split evenly.
+    # ---------------- the top row (optional) ----------------
     y = ROW_TOP
-    if bars:
-        bar_w = [panels[name]["w"] for name, _body in WINS]
-        bar_gap = (WIDTH - 2 * PAD - sum(bar_w)) / (len(WINS) - 1)
-        bar_x = [PAD + sum(bar_w[:i]) + i * bar_gap for i in range(len(WINS))]
-        heads = [wrap(body, w - HEAD_DX, FS_HEAD) for (_n, body), w in zip(WINS, bar_w)]
-        top = y + max(h.count("\n") + 1 for h in heads) * LINE + HEAD_GAP
-        for (name, _body), head, x in zip(WINS, heads, bar_x):
-            text(next(letters), x, y, size=FS_LETTER)
-            text(head, x + HEAD_DX, y + 9)
-            image(name, x, top, manifest)
-        y = top + max(panels[name]["h"] for name, _b in WINS) + ROW_GAP
+    if kidney is not None:
+        y = top_row(manifest, kidney, letters, y)
 
     for row in ROWS:
         cells = [row["sketch"], *row["panels"]]
@@ -191,17 +246,23 @@ def main() -> None:
                        help="whose panels to assemble, from figure_4/<mapper>/panels/")
     which.add_argument("--all-mappers", action="store_true",
                        help="the version aggregated over all mappers, figure_4/all_mappers/")
-    ap.add_argument("--bars", action=argparse.BooleanOptionalAction, default=None,
-                    help="include the bar-plot row (default: only for "
-                         + ", ".join(sorted(BARS_DEFAULT)) + ")")
+    ap.add_argument("--top-row", action=argparse.BooleanOptionalAction, default=None,
+                    help="include the top row, win counts and kidney example (default: "
+                         "only for " + ", ".join(sorted(TOP_ROW_DEFAULT)) + ")")
     args = ap.parse_args()
     mapper = args.mapper or "all_mappers"
-    bars = mapper in BARS_DEFAULT if args.bars is None else args.bars
+    with_top = mapper in TOP_ROW_DEFAULT if args.top_row is None else args.top_row
     panels = paths.panel_dir(FIGURE, mapper)
     drawing = Drawing("f24", panels, paths.VAULT)
 
     manifest = json.loads((panels / "panels.json").read_text(encoding="utf-8"))
-    build(manifest, bars)
+    kidney = None
+    if with_top:
+        path = paths.figure_dir(FIGURE, mapper) / "kidney_example" / "panels.json"
+        if not path.exists():
+            raise SystemExit(f"{path} missing - run 04_kidney_example/ first (its README)")
+        kidney = {**json.loads(path.read_text(encoding="utf-8")), "folder": path.parent}
+    build(manifest, kidney)
     drawing.check()
     drawing.write(paths.drawing(FIGURE, mapper))
 

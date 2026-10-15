@@ -295,6 +295,18 @@ def build(manifest: dict) -> None:
         drawing.dot(key_x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])
         text(entry[0], key_x + LEG_INDENT, y)
 
+    # The grey states of (h) are no rows of (i), so they follow the key at its own
+    # pitch, after a half-line gap: one entry per family, a dot per grey in it.
+    ys = [s["y"] for s in legends["states"]]
+    pitch = (ys[1] - ys[0]) * row3_h if len(ys) > 1 else LEG_PITCH
+    y += pitch / 2
+    for label, shades in legends.get("other_states", []):
+        y += pitch
+        step = SWATCH * 0.7
+        for i, shade in enumerate(shades):
+            drawing.dot(key_x + SWATCH / 2 + i * step, y + FS_LEG * 0.6, SWATCH, shade)
+        text(label, key_x + LEG_INDENT + (len(shades) - 1) * step, y)
+
     # (i) is named beside its panel rather than over it, on the line its key
     # opens on.
     text("i", PAD, heading_y, size=FS_LETTER)
