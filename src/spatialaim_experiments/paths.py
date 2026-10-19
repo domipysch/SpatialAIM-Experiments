@@ -38,7 +38,7 @@ DATA = _env("SPATIALAIM_DATA", WORKSPACE / "Data")
 DATASETS = DATA / "01_Datasets_Paper"
 RESULTS = DATA / "02_Results"
 
-# The paper's 88 pairs (10 references, 1-based PairIDs).
+# The paper's 94 pairs (10 references, 1-based PairIDs).
 PAIRS_CSV = DATASETS / "pairs.csv"
 SC_INDEX = DATASETS / "scRNA" / "index.csv"
 ST_INDEX = DATASETS / "ST" / "index.csv"

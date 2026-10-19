@@ -6,20 +6,25 @@ both ways, side by side, so a reader sees what a higher neighbourhood enrichment
 looks like.
 
 The example is pair 4 (`04_mouse-kidney`, one MERFISH section of 126,547 cells)
-with nearest centroid and average linkage — the reference where SpatialAIM's gain
-is largest. Mapped as annotated (9 types), the medulla is a speckle of cortical
-types (podocytes, distal convoluted tubule). SpatialAIM proposes 6 states, and the
-section separates into cortex, a band at the cortex–medulla border and medulla.
+with nearest centroid and average linkage. On this mapper and tree, the kidney is the
+reference where SpatialAIM's gain is largest: neighbourhood enrichment rises from 142
+(annotation) to 285 (SpatialAIM). The next largest gain is breast cancer, 151 → 178.
 
 ## What is shown
 
 Exactly the two mappings Experiment 1 compares for this pair, mapper and tree,
 read from its summary (`spatialaim_experiments.exp1`) — nothing is chosen here:
 
-| side | start | K |
-|---|---|---|
-| annotation | the annotation `exp1.paired` compares against (highest `score_overall`; for the kidney `celltype`) | T, its number of types (identity cut) |
-| SpatialAIM | the start `exp1.best_start` picks (for the kidney the Leiden over-clustering) | its `best.overall` |
+| side | start | K | kidney |
+|---|---|---|---|
+| annotation | the annotation `exp1.paired` compares against: of the reference's annotations, the one with the highest `score_overall` | T, its number of types (identity cut) | `cell_ontology_class`, the 22 Tabula Muris Senis classes, K = 22 |
+| SpatialAIM | the start `exp1.best_start` picks | its `best.overall` | the Leiden over-clustering, K = 6 |
+
+The kidney reference carries two annotations: TMS's own `cell_ontology_class` (22
+classes) and Liu et al.'s coarse-grained `cell_ontology_relabel` (13). The 22-class one
+is the baseline because its `score_overall` is higher, by a small margin (0.420 vs
+0.419). The SpatialAIM side is a close call as well: the annotation start
+`cell_ontology_class` at its own best K = 6 scores 0.496, against 0.507 for Leiden.
 
 The per-spot mappings of Experiment 1 stay on the cluster, so step 1 recomputes the
 two mappings locally, at those two Ks only, and checks their metrics against the
@@ -52,7 +57,13 @@ python sections/04_biology/make_excalidraw.py --mapper nearest_centroid
 ```
 
 Both scripts take `--pair`, `--mapper` and `--tree` (defaults: 4, `nearest_centroid`,
-`average`). Step 1 skips a mapping that already exists; `--force` recomputes it.
+`average`). Step 1 skips a mapping whose K folder already exists; `--force` recomputes it.
+It checks only the K, not the data, so pass `--force` whenever the dataset or the
+Experiment 1 summary has changed.
+
+`02_panels.py` shortens the annotated type names for the key via `SHORT_NAMES`. A
+name without an entry is shown in full, so keep the entries in line with the
+annotation that is shown (currently the 22 TMS classes).
 
 ## Files
 

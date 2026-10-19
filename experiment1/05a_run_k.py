@@ -1,5 +1,5 @@
-"""One K of one stage-B run, for the run too long for one 24 h job: DOT on unit 248
-(pair 87, 09_human-breast-cancer, whole 168k-cell Xenium section, Leiden start).
+"""One K of one stage-B run, for the run too long for one 24 h job: DOT on unit 189
+(pair 93, 09_human-breast-cancer, whole 168k-cell Xenium section, Leiden start).
 
 The sweep is split into one Slurm array task per K (05a_run_k.tinyfat.sbatch):
 each runs ``spatialaim run --k_min K --k_max K`` on the unit's prebuilt scaffold,
@@ -31,7 +31,7 @@ import anndata as ad
 import grid
 import run_one
 
-UNIT, MAPPER = 248, "dot"
+UNIT, MAPPER = 189, "dot"
 # the files the cross-K comparison reads; a K without them is not done
 ANALYSIS_FILES = ("cossim_summary.csv", "topology_metrics.json", "modularity_metrics.json")
 

@@ -1,5 +1,5 @@
 #!/bin/bash -l
-# One K of DOT on unit 248 (pair 87, 09_human-breast-cancer, Leiden start) per array
+# One K of DOT on unit 189 (pair 93, 09_human-breast-cancer, Leiden start) per array
 # task, for the one run that does not fit a 24 h job; the array index is K.
 # Submit from this directory, per tree (only the tree(s) without DONE):
 #   sbatch.tinyfat --array=$(python 05a_run_k.py ward --levels)%20 05a_run_k.tinyfat.sbatch run ward

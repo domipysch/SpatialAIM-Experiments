@@ -65,7 +65,7 @@ checkout. Check it:
 
 ## Conventions
 
-* **Aggregate per reference, never per pair.** 72 of the 88 pairs are retina slices.
+* **Aggregate per reference, never per pair.** 72 of the 94 pairs are retina slices.
 * **SpatialAIM's level is `best.overall`** from `k_selection.json`; the annotation
   baseline is the identity cut at K = T of the same run tree, with the same
   mapper on both sides.

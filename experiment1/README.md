@@ -8,9 +8,9 @@ runner (SpatialAIM itself is not touched). Sections 03 and 04 read the pulled su
 
 | | |
 |---|---|
-| start modes | `leiden_res3.0` + `ann_<key>` for every `CellTypeKey*` of the reference → 88 + 164 = **252 (pair, start) units** |
-| stage A — TinyFat | one reference-scaffold build per unit (252) |
-| stage B — TinyFat | {ward, average} × {nearest_centroid, wann, tacco, dot, tangram} per unit (2520); Tangram on CPU |
+| start modes | `leiden_res3.0` + `ann_<key>` for every `CellTypeKey*` of the reference → 94 + 99 = **193 (pair, start) units** |
+| stage A — TinyFat | one reference-scaffold build per unit (193) |
+| stage B — TinyFat | {ward, average} × {nearest_centroid, wann, tacco, dot, tangram} per unit (1930); Tangram on CPU |
 | K | full sweep, step 1; Leiden resolution 3.0 in both modes |
 
 **Why two stages.** The reference scaffold (start clusters, shared-gene Leiden, aggregates, both
@@ -40,8 +40,8 @@ is unit i, and i is the Slurm array index of every job on that unit.
 
 | array | one job = | jobs | runs per job |
 |---|---|---|---|
-| `01_scaffolds.tinyfat.sbatch` | one unit's scaffold | 252 | 1 |
-| `02_map.tinyfat.sbatch <mapper>`, once per mapper | (unit, mapper): ward, then average | 5 × 252 | 2 |
+| `01_scaffolds.tinyfat.sbatch` | one unit's scaffold | 193 | 1 |
+| `02_map.tinyfat.sbatch <mapper>`, once per mapper | (unit, mapper): ward, then average | 5 × 193 | 2 |
 
 The slowest run of the first round was a 7.3 h DOT sweep, so two fit the 24 h limit. Units are
 ordered by PairID; units 0–2 are pair 1 (`01_mouse-ssp`), which the one-pair test runs.
@@ -58,10 +58,10 @@ scratch.
 | `01_scaffolds.tinyfat.sbatch`, `02_map.tinyfat.sbatch` | the arrays; first argument `run` or `test` (the run root), then (stage B) the mapper |
 | `03_status.py` | done / failed / missing per stage and mapper, cache misses, OOM suspects, and the `sbatch --array=…` lines that resubmit what is unfinished |
 | `04_summarize.py` | → `summary/` (below) |
-| `05a_run_k.py`, `05a_run_k.tinyfat.sbatch`, `05b_merge_k.py` | only for DOT on unit 248 (pair 87, breast cancer, Leiden start), which does not fit 24 h: one job per K, then merged into the normal run folder (step 5b) |
+| `05a_run_k.py`, `05a_run_k.tinyfat.sbatch`, `05b_merge_k.py` | only for DOT on unit 189 (pair 93, breast cancer, Leiden start), which does not fit 24 h: one job per K, then merged into the normal run folder (step 5b) |
 | *helpers, not run by hand* | |
 | `config.sh` | shared settings, sourced by everything: `$WORK/spatialaim_exp1` layout, conda in `$WORK`, proxy, caches off `$HOME`, thread pinning |
-| `units.tsv`, `grid.py` | the 252 units and the walltimes; `python grid.py array leiden\|annotation [--test]` prints an `--array` list; `python grid.py units` rewrites `units.tsv` (only if the datasets change) |
+| `units.tsv`, `grid.py` | the 193 units and the walltimes; `python grid.py array leiden\|annotation [--test]` prints an `--array` list; `python grid.py units` rewrites `units.tsv` (only if the datasets change) |
 | `run_one.py` | the measured runner: `run_one.py A <unit>` or `run_one.py B <unit> <mapper>` |
 | `run_job.sh` | body of every array task |
 
@@ -189,7 +189,7 @@ runs.
 Walltimes (`JOB_TIME`, `DOT_TIME` in `grid.py`): 2 h for nearest_centroid, wann, tacco and tangram (first
 round's slowest job: 0.7, 0.7, 1.3 and 0.9 h), so they can also use TinyFat's short-job nodes. DOT is split by start kind
 (annotation starts sweep few K and are fast) and gets realistic limits instead of 24 h for all
-252 jobs: 4 h for annotation starts (first round: p99 2.6 h, max 5.1 h) and 8 h for Leiden starts
+193 jobs: 4 h for annotation starts (first round: p99 2.6 h, max 5.1 h) and 8 h for Leiden starts
 (p99 6.6 h, max 8.2 h). The few jobs that run over get resubmitted with `--time=24:00:00` (step 5);
 a tree that finished before has `DONE` and is skipped.
 
@@ -198,11 +198,11 @@ lower it as the queue allows.
 
 ```bash
 export EXP1_ROOT=$EXP1_BASE/run
-sbatch.tinyfat --array=0-251%20 01_scaffolds.tinyfat.sbatch run
-python 03_status.py                         # wait until A: 252 done
+sbatch.tinyfat --array=0-192%20 01_scaffolds.tinyfat.sbatch run
+python 03_status.py                         # wait until A: 193 done
 
 for m in nearest_centroid wann tacco tangram; do
-  sbatch.tinyfat -J exp1_B_$m --time=02:00:00 --array=0-251%20 02_map.tinyfat.sbatch run $m
+  sbatch.tinyfat -J exp1_B_$m --time=02:00:00 --array=0-192%20 02_map.tinyfat.sbatch run $m
 done
 sbatch.tinyfat -J exp1_B_dot --time=04:00:00 --array=$(python grid.py array annotation)%20 02_map.tinyfat.sbatch run dot
 sbatch.tinyfat -J exp1_B_dot --time=08:00:00 --array=$(python grid.py array leiden)%20 02_map.tinyfat.sbatch run dot
@@ -228,7 +228,7 @@ before the script name and override its `#SBATCH` lines, e.g. `--mem=128G` after
 
 ### 5b. The one run that does not fit 24 h
 
-DOT on unit 248 (pair 87, `09_human-breast-cancer` against the whole 167,780-cell Xenium
+DOT on unit 189 (pair 93, `09_human-breast-cancer` against the whole 167,780-cell Xenium
 section, Leiden start) needs more than 24 h for one tree. It runs as **one array task per K**
 instead: each task is `spatialaim run --k_min K --k_max K` on the unit's scaffold, measured like
 any run, and `05b_merge_k.py` then scores the K levels together with spatialaim's own cross-K
@@ -238,7 +238,7 @@ run. Per tree, only for a tree without `DONE`:
 
 ```bash
 # which trees already finished (a listed DONE = that tree needs nothing more):
-ls $EXP1_BASE/run/results/087_09_human-breast-cancer__09_human-breast-cancer/leiden_res3.0/*/dot/DONE
+ls $EXP1_BASE/run/results/093_09_human-breast-cancer__09_human-breast-cancer/leiden_res3.0/*/dot/DONE
 sbatch.tinyfat --array=$(python 05a_run_k.py ward --levels)%20 05a_run_k.tinyfat.sbatch run ward
 python 05b_merge_k.py ward                  # once all K are done; else prints the --array to resubmit
 ```

@@ -7,7 +7,7 @@ also the Slurm array index of every job that works on it:
     stage B   job (unit, mapper)   runs ward, then average             02_map.tinyfat.sbatch <mapper>
 
 Start clusterings per pair: ``leiden_res3.0`` plus ``ann_<key>`` for every
-``CellTypeKey*`` of the reference -> 252 units for the 88 pairs. Units are
+``CellTypeKey*`` of the reference -> 193 units for the 94 pairs. Units are
 ordered by PairID, so units 0-2 are pair 1 (01_mouse-ssp); the test runs units 0
 (Leiden start) and 1 (ann_cellType), see TEST_UNITS.
 
