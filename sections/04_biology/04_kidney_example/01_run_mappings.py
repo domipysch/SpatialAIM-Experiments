@@ -21,7 +21,7 @@ next to a ``selection.json`` recording what was chosen and why. Afterwards the
 metrics of both runs are compared with the summary's; they should agree up to the
 small run-to-run noise of the Leiden over-clustering.
 
-    python sections/04_biology/04_kidney_example/01_run_mappings.py [--pair 4] [--force]
+    python sections/04_biology/04_kidney_example/01_run_mappings.py [--pair 4] [--ann_key KEY] [--force]
 """
 
 from __future__ import annotations
@@ -56,8 +56,10 @@ OUT = paths.RESULTS / "biology_example"
 # which two mappings
 # ---------------------------------------------------------------------------
 
-def select(pair: int, mapper: str, tree: str) -> dict:
-    """The two mappings Experiment 1 compares for one pair, mapper and tree.
+def select(pair: int, mapper: str, tree: str, ann_key: str | None = None) -> dict:
+    """The two mappings Experiment 1 compares for one pair, mapper and tree;
+    ``ann_key`` swaps the annotation side for another of the reference's annotations
+    (at its own K = T), e.g. the kidney's cell_ontology_relabel.
 
     Output
         {"pair_id", "pair_dir", "reference", "st", "mapper", "tree",
@@ -69,11 +71,15 @@ def select(pair: int, mapper: str, tree: str) -> dict:
     if rows.empty:
         raise SystemExit(f"no Experiment 1 runs for pair {pair}, {mapper}, {tree}")
 
-    # exactly the pairing the figure's scatters use
+    # exactly the pairing the figure's scatters use, unless ann_key names another
+    # of the reference's annotations
     paired = exp1.paired(rows, METRICS[0]).iloc[0]
+    key = ann_key or paired["ann_key_base"]
     spatialaim = rows[rows["role"] == "spatialaim"].iloc[0]
-    baseline = rows[(rows["role"] == "baseline") &
-                    (rows["ann_key"] == paired["ann_key_base"])].iloc[0]
+    baseline = rows[(rows["role"] == "baseline") & (rows["ann_key"] == key)]
+    if baseline.empty:
+        raise SystemExit(f"no Experiment 1 baseline with annotation {key!r} for pair {pair}")
+    baseline = baseline.iloc[0]
 
     pairs = pd.read_csv(paths.PAIRS_CSV)
     st = pairs.loc[pairs["PairID"] == pair, "stName"].iloc[0]
@@ -152,10 +158,12 @@ def main() -> None:
     ap.add_argument("--pair", type=int, default=4, help="PairID (default: 4, the kidney)")
     ap.add_argument("--mapper", choices=MAPPERS, default="nearest_centroid")
     ap.add_argument("--tree", choices=["average", "ward"], default="average")
+    ap.add_argument("--ann_key", default=None,
+                    help="annotation side: this obs column instead of the one exp1.paired picks")
     ap.add_argument("--force", action="store_true", help="recompute existing mappings")
     args = ap.parse_args()
 
-    selection = select(args.pair, args.mapper, args.tree)
+    selection = select(args.pair, args.mapper, args.tree, args.ann_key)
     folder = run_root(selection, "annotation").parent
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "selection.json").write_text(json.dumps(selection, indent=2), encoding="utf-8")

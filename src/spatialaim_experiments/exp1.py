@@ -37,6 +37,13 @@ def resources(stage: str) -> pd.DataFrame:
                        keep_default_na=False, na_values=[""])
 
 
+def resources_single_k() -> pd.DataFrame:
+    """``summary/resources_single_k.csv``: time per run of mapping one annotation at
+    K = T only (experiment1/06_single_k.py), one row per annotation unit and mapper."""
+    return pd.read_csv(paths.EXP1_SUMMARY / "resources_single_k.csv",
+                       keep_default_na=False, na_values=[""])
+
+
 def annotation_best(df: pd.DataFrame) -> pd.DataFrame:
     """The annotation-start runs at K = best.overall: the ``annotation_best`` rows
     of best_per_run.csv, or, for a summary written before 04_summarize.py had

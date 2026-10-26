@@ -13,8 +13,14 @@ Leiden start and the annotation start(s), each at its own K = best.overall
     b  mappers_cell the five mappers at their own proposal, centred within each pair,
                     per cell (the spot metric)
     c  mappers_gene the same per gene, on b's y axis
-    d  runtime      what each mapper costs
-    e  memory
+    d  runtime      what each mapper costs: the K sweep from the Leiden start
+    e  runtime_vs_annotation
+                    a whole SpatialAIM run (Leiden scaffold + every K) against
+                    mapping one annotation (its scaffold + K = T), on d's y axis
+
+Supplementary figure 6 (figure "S6"):
+
+    memory          peak memory of the K sweep from the Leiden start
 
 Absolute cosine similarity is not comparable across references (33-gene against
 981-gene panels), so every panel is a comparison *within* a reference, averaged
@@ -43,12 +49,13 @@ from spatialaim_experiments.style import (
     use_paper_rcparams,
 )
 
-FIGURE = "2"
+FIGURE, SUPPLEMENT = "2", "S6"
 LEIDEN_TAG = "leiden_res3.0"
 METRIC_SPOT, METRIC_GENE = "cossim_hard_raw_spot", "cossim_hard_raw_gene"
 
 use_paper_rcparams()
 panels = PanelWriter(paths.panel_dir(FIGURE))
+supplement = PanelWriter(paths.panel_dir(SUPPLEMENT))
 
 # Row (a): three heat maps of identical geometry, so their cells line up. The top
 # of each image holds the rotated reference names, the bottom the colour bar.
@@ -72,6 +79,9 @@ MAPPER_SIZES = {"mappers_cell": (MAPPER_LEFT + MAPPER_PLOT, BAND_H),
                 "mappers_gene": (MAPPER_INSET + MAPPER_PLOT, BAND_H)}
 COST_SIZE = (1.25, BAND_H)
 COST_AXES = (0.60 / 1.25, BAND_Y[0], 0.60 / 1.25, BAND_Y[1])
+# (e) shares (d)'s y axis as (c) shares (b)'s: same width as (d), its plotting box
+# set in by MAPPER_INSET and nearly twice as wide, for ten boxes against d's five.
+PAIR_AXES = (MAPPER_INSET / 1.25, BAND_Y[0], 1.15 / 1.25, BAND_Y[1])
 
 # Δ cosine: a fixed scale, not one fitted to the data -- almost every cell is near
 # zero, which is the row's point, and autoscaling would turn that noise into colour.
@@ -194,18 +204,23 @@ def centred(df: pd.DataFrame, metric: str) -> pd.Series:
 
 
 def mapper_box(ax, values, position: float, width: float, mapper: str,
-               outliers: bool = False) -> None:
+               outliers: bool = False, hollow: bool = False) -> None:
     """One box in the mapper's colour: median, quartiles, whiskers (1.5 x IQR);
-    values beyond the whiskers as dots if ``outliers``, else not drawn."""
+    values beyond the whiskers as dots if ``outliers``, else not drawn. A
+    ``hollow`` box is white inside, its outliers open circles."""
     colour = MAPPER_COLOURS[mapper]
     box = ax.boxplot([values], positions=[position], widths=width,
                      patch_artist=True, showfliers=outliers,
                      medianprops=dict(color=colour, lw=1.2),
                      whiskerprops=dict(color=colour, lw=0.7),
                      capprops=dict(color=colour, lw=0.7),
-                     flierprops=dict(marker="o", markersize=2.5, markerfacecolor=colour,
-                                     markeredgecolor=colour))
-    box["boxes"][0].set(facecolor=colour, alpha=0.5, edgecolor=colour, linewidth=0.9)
+                     flierprops=dict(marker="o", markersize=2.5,
+                                     markerfacecolor="white" if hollow else colour,
+                                     markeredgecolor=colour, markeredgewidth=0.7))
+    if hollow:
+        box["boxes"][0].set(facecolor="white", edgecolor=colour, linewidth=0.9)
+    else:
+        box["boxes"][0].set(facecolor=colour, alpha=0.5, edgecolor=colour, linewidth=0.9)
 
 
 def panel_mappers(df: pd.DataFrame) -> None:
@@ -263,25 +278,100 @@ def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFr
                 .rename("value").reset_index().rename(columns={"sc": "reference"}))
 
 
-def panel_cost(cost: pd.DataFrame, name: str, ylabel: str, log: bool) -> None:
+def whole_runs_per_reference(res: pd.DataFrame, single: pd.DataFrame) -> pd.DataFrame:
+    """The two sides of panel e, one value per (reference, mapper, side), in minutes.
+
+    Input
+        res     resources_stage_b.csv (exp1.resources("b"))
+        single  resources_single_k.csv (exp1.resources_single_k()): one annotation
+                mapped at K = T only, per annotation unit and mapper
+
+    Output
+        columns reference, mapper, side, value:
+          side "spatialaim"   a whole SpatialAIM run: Leiden scaffold build + the
+                              sweep over every K (wall_with_scaffold_s), median
+                              over the reference's pairs and both trees
+          side "annotation"   mapping one annotation: its scaffold build + K = T,
+                              median over the reference's pairs and annotation keys
+
+    Both sides count loading, preprocessing and each K's analysis; what differs
+    is the over-clustering and the K levels beyond T.
+
+    A single-K run that missed the scaffold cache (cache_hit False: 06_mouse-retina,
+    whose files on the cluster are newer than its scaffolds) rebuilt the scaffold
+    inside its own timer, so its wall_s already holds the build and nothing is added.
+    """
+    leiden = res[(res["start_tag"] == LEIDEN_TAG) & (res["status"] == "ok")]
+    single = single[single["status"] == "ok"]
+    built_inside = single["cache_hit"].astype(str).str.lower() != "true"
+    single = single.assign(wall_with_scaffold_s=single["wall_s"].where(
+        built_inside, single["wall_s"] + single["scaffold_build_s"]))
+    sides = [frame.groupby(["sc", "mapper"])["wall_with_scaffold_s"].median().div(60)
+                  .rename("value").reset_index().assign(side=side)
+             for side, frame in (("spatialaim", leiden), ("annotation", single))]
+    return pd.concat(sides, ignore_index=True).rename(columns={"sc": "reference"})
+
+
+def cost_axes(fig, rect, ylabel: str | None, log: bool):
+    """The axes of one cost panel: log (runtime) or from zero (memory)."""
+    ax = fig.add_axes(rect)
+    if log:
+        ax.set_yscale("log")
+    if ylabel:
+        ax.set_ylabel(ylabel)
+    bare(ax)
+    return ax
+
+
+def mapper_columns(ax) -> None:
+    """No x ticks -- the mapper colours say which box is which. After the boxes,
+    which set ticks of their own."""
+    ax.set_xticks([])
+    ax.set_xlim(-0.6, len(MAPPERS) - 0.4)
+
+
+def log_ticks(ax) -> None:
+    """Plain numbers on a log axis (1, 10, 100 rather than 10^0 ...), no minor ticks."""
+    ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.yaxis.set_minor_locator(mpl.ticker.NullLocator())
+
+
+def panel_cost(cost: pd.DataFrame, ylabel: str, log: bool):
     """Five boxes, one per mapper, each holding the ten references' values, with
-    the outliers shown (a slow reference is exactly what this panel is about)."""
+    the outliers shown (a slow reference is exactly what this panel is about).
+    Returns (fig, ax), unsaved."""
     fig = plt.figure(figsize=COST_SIZE)
-    ax = fig.add_axes(COST_AXES)
+    ax = cost_axes(fig, COST_AXES, ylabel, log)
     for m, mapper in enumerate(MAPPERS):
         mapper_box(ax, cost.loc[cost["mapper"] == mapper, "value"].to_numpy(), m, 0.62, mapper,
                    outliers=True)
-    if log:
-        ax.set_yscale("log")
-        ax.yaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-        ax.yaxis.set_minor_locator(mpl.ticker.NullLocator())
-    else:
+    mapper_columns(ax)
+    if not log:
         ax.set_ylim(bottom=0)
-    ax.set_xticks([])
-    ax.set_xlim(-0.6, len(MAPPERS) - 0.4)
-    ax.set_ylabel(ylabel)
-    bare(ax)
-    panels.save(fig, name)
+    return fig, ax
+
+
+def panel_whole_runs(cost: pd.DataFrame):
+    """Per mapper two boxes, each holding the ten references' values: filled, a
+    whole SpatialAIM run; hollow, one annotation mapped. y axis labelled by (d).
+    Returns (fig, ax), unsaved."""
+    fig = plt.figure(figsize=COST_SIZE)
+    ax = cost_axes(fig, PAIR_AXES, None, log=True)
+    for m, mapper in enumerate(MAPPERS):
+        for side, dx, hollow in (("spatialaim", -0.19, False), ("annotation", 0.19, True)):
+            values = cost.loc[(cost["mapper"] == mapper) & (cost["side"] == side), "value"]
+            mapper_box(ax, values.to_numpy(), m + dx, 0.31, mapper, outliers=True,
+                       hollow=hollow)
+    mapper_columns(ax)
+    grey = "#7F7F7F"
+    ax.legend(handles=[mpl.patches.Patch(facecolor=grey, alpha=0.5, edgecolor=grey,
+                                         label="SpatialAIM"),
+                       mpl.patches.Patch(facecolor="white", edgecolor=grey,
+                                         label="Annotation")],
+              loc="upper left", frameon=False, fontsize=6.5, handlelength=0.9,
+              handleheight=0.7, borderaxespad=0.1, labelspacing=0.2, handletextpad=0.3)
+    ax.tick_params(axis="y", labelleft=False)
+    return fig, ax
 
 
 # ---------------------------------------------------------------------------
@@ -297,11 +387,20 @@ def main() -> None:
     panel_mappers(df)
 
     runs = exp1.resources("b")
-    panel_cost(cost_per_reference(runs, "wall_s", 1 / 60), "runtime",
-               "Runtime (min)", log=True)
-    panel_cost(cost_per_reference(runs, "peak_rss_tree_mb", 1 / 1024), "memory",
-               "Memory used (GB)", log=False)
+    sweep = panel_cost(cost_per_reference(runs, "wall_s", 1 / 60), "Runtime (min)", log=True)
+    whole = panel_whole_runs(whole_runs_per_reference(runs, exp1.resources_single_k()))
+    # the shared axis: both span what either needs, and only (d) is labelled
+    lows, highs = zip(*(ax.get_ylim() for _, ax in (sweep, whole)))
+    for (fig, ax), name in ((sweep, "runtime"), (whole, "runtime_vs_annotation")):
+        ax.set_ylim(min(lows), max(highs))
+        log_ticks(ax)
+        panels.save(fig, name)
     panels.write_manifest()
+
+    fig, _ = panel_cost(cost_per_reference(runs, "peak_rss_tree_mb", 1 / 1024),
+                        "Memory used (GB)", log=False)
+    supplement.save(fig, "memory")
+    supplement.write_manifest()
 
 
 if __name__ == "__main__":

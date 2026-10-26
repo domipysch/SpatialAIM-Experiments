@@ -8,6 +8,9 @@ Produces:
     summary/all_k_per_run.csv.gz      every k_comparison.csv row, with the run's keys
     summary/resources_stage_b.csv     time + memory per stage-B run, with its scaffold's cost
     summary/resources_stage_a.csv     time + memory per stage-A scaffold build
+    summary/resources_single_k.csv    time + memory per one-annotation run (06_single_k.py, K = T only),
+                                      with its scaffold's cost; only if single_k/ exists. Timing only:
+                                      every result above comes from the stage-B sweeps.
     summary/missing.csv               grid runs without DONE (should be empty)
     summary/meta.json                 counts, spatialaim version(s), when
 
@@ -40,6 +43,7 @@ MEASURED = ["status", "wall_s", "cpu_user_s", "cpu_sys_s", "peak_rss_tree_mb",
             "rss_samples", "threads", "mem_limit_mb", "cluster", "partition", "host",
             "cpu_model", "gpu_name", "job_id", "spatialaim_version", "started_at"]
 SCAFFOLD_ONLY = ["scaffold_s", "scaffold_mb"]
+SINGLE_K_ONLY = ["k", "cache_hit", "seconds_map", "seconds_analysis"]
 
 
 def figure_rows(run: pd.Series) -> list[dict]:
@@ -116,14 +120,36 @@ def main() -> None:
     resources["wall_with_scaffold_s"] = resources["wall_s"] + resources["scaffold_build_s"]
     resources.to_csv(OUT / "resources_stage_b.csv", index=False)
 
+    # resources_single_k.csv
+    # the one-annotation runs, priced like stage B: their scaffold's build added
+    single = sorted((ROOT / "single_k").glob("*/*/*/DONE"))
+    if single:
+        keyed = pd.DataFrame(grid.units()).set_index(["pair_dir", "start_tag"])
+        rows = []
+        for done in single:
+            res = json.loads((done.parent / "resources.json").read_text(encoding="utf-8"))
+            unit = keyed.loc[(res["pair_dir"], res["start_tag"])]
+            rows.append({"run_id": res["run_id"], "pair_id": int(unit["pair_id"]),
+                         "pair_dir": res["pair_dir"], "sc": unit["sc"], "st": unit["st"],
+                         "start_tag": res["start_tag"], "ann_key": res["ann_key"],
+                         "tree": res["tree"], "mapper": res["mapper"]}
+                        | {f: res.get(f) for f in MEASURED + SINGLE_K_ONLY})
+        single_k = pd.DataFrame(rows)
+        unit = pd.MultiIndex.from_frame(single_k[["pair_dir", "start_tag"]])
+        single_k["scaffold_build_s"] = cost["scaffold_s"].fillna(cost["wall_s"]).reindex(unit).to_numpy()
+        single_k["wall_with_scaffold_s"] = single_k["wall_s"] + single_k["scaffold_build_s"]
+        single_k.to_csv(OUT / "resources_single_k.csv", index=False)
+
     # meta.json
-    versions = pd.concat([scaffolds["spatialaim_version"], resources["spatialaim_version"]])
+    versions = pd.concat([scaffolds["spatialaim_version"], resources["spatialaim_version"]]
+                         + ([single_k["spatialaim_version"]] if single else []))
     info = {
         "created": dt.datetime.now().isoformat(timespec="seconds"),
         "root": str(ROOT),
         "grid_runs": int(len(runs)),
         "done": int(runs["done"].sum()),
         "missing": int((~runs["done"]).sum()),
+        "single_k_done": len(single),
         "spatialaim_versions": sorted(versions.dropna().unique().tolist()),
     }
     (OUT / "meta.json").write_text(json.dumps(info, indent=2), encoding="utf-8")

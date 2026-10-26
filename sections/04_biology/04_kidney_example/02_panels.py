@@ -1,33 +1,31 @@
 """
-Step 2 of figure 4's kidney example: the two spatial maps, as PNGs for the drawing.
+Step 2 of figure 4's kidney example: what neighbourhood enrichment looks like, as
+PNGs for the drawing.
 
-Reads the two mappings 01_run_mappings.py computed and draws the ST section twice,
-coloured by the annotation (left) and by SpatialAIM's states (right):
+Reads the two mappings 01_run_mappings.py computed (annotation, SpatialAIM) and
+draws, per side:
 
-    map_annotation   every spot coloured by the annotated type it is mapped to
-    map_spatialaim   every spot coloured by its SpatialAIM state
-    zoom_annotation  one window of the section (ZOOM_WINDOWS), outlined on both maps,
-    zoom_spatialaim  at spot level
+    map_<side>    the whole section, small, every spot in the colour of its state;
+                  the zoom window is boxed
+    zoom_<side>   the window, large, with the neighbourhood graph drawn: an edge
+                  joining two spots of the same state in that state's colour, an
+                  edge between two states pale grey. Neighbourhood enrichment counts
+                  exactly these same-state edges against a label shuffle.
 
-Both maps share one set of colours, so they can be compared directly:
+The graph is SpatialAIM's own (squidpy spatial kNN, K_SPATIAL neighbours), and the
+window's mean self z-score and local purity are computed with SpatialAIM's own
+functions on the graph rebuilt from the window's spots (shuffled within the window).
 
-  * every annotated type has its own colour, assigned by how many reference cells
-    the type has (most abundant first)
-  * a SpatialAIM state takes the colour of the annotated type that dominates its
-    reference cells -- a state merging several types shows as one colour where
-    the annotation shows several; a second state dominated by the same type gets
-    a darker shade of it
-
-Spots are drawn in one random order (fixed seed), not state by state, so where
-spots overlap the colour on top reflects how many spots each state has there.
+State colours follow the annotated types: every type its own colour; a SpatialAIM state takes the colour of the type dominating its reference
+cells, a second state dominated by the same type a turned hue.
 
 The images go to the vault, next to the nearest-centroid drawing of figure 4:
 
-    Excalidraw/figure_4/<mapper>/kidney_example/   map_*.png + panels.json
+    Excalidraw/figure_4/<mapper>/kidney_example/   *.png + panels.json
 
-``panels.json`` also carries what the drawing writes around the maps: each side's
-K, its key (label and colour per type or state, with its share of spots) and its
-metrics.
+``panels.json`` also carries what the drawing writes around them: each side's K and
+its metrics on the whole section and on the window. No state is named: the
+figure is about neighbourhood enrichment, not about which cell types these are.
 
     python sections/04_biology/04_kidney_example/02_panels.py [--pair 4]
 """
@@ -44,6 +42,7 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.collections import LineCollection
 from matplotlib.colors import to_hex, to_rgb
 
 from spatialaim_experiments import paths
@@ -56,42 +55,74 @@ FIGURE = "4"
 RESULTS = paths.RESULTS / "biology_example"
 
 # Print width of one map, in inches; the height follows the section's aspect.
-MAP_WIDTH = 2.3
-# Marker area in pt^2. 126k spots on 2.3 in: large enough to fill the tissue,
-# small enough that neighbouring spots of different states stay apart.
-SPOT_SIZE = 0.06
+# The maps are small -- they only locate the zoom; the zoom carries the figure.
+MAP_WIDTH = 1.0
+# Marker area in pt^2: 126k spots on 1.0 in.
+SPOT_SIZE = 0.02
 
 # The zoom pair: one window of the section, the same in both maps, at spot level,
 # where a mixed and a coherent mapping differ visibly whatever the palette.
 # (x0, x1, y0, y1) in the ST coordinates, per PairID; a pair without a window
-# gets no zoom. The kidney's crosses the cortex-medulla border.
-ZOOM_WINDOWS = {4: (14000.0, 30000.0, 26000.0, 40000.0)}
-ZOOM_WIDTH = 1.15     # inches, half a map
-ZOOM_SPOT = 1.0       # marker area in pt^2: ~7k spots on 1.15 in
+# gets no zoom. The kidney's spans medulla, the NAPSA-high proximal-tubule ring and cortex.
+ZOOM_WINDOWS = {4: (41000.0, 50000.0, 38000.0, 45875.0)}
+ZOOM_WIDTH = 1.95     # inches; ~4k spots
+# The spatial graph: SpatialAIM's analysis builds a kNN graph with this many
+# neighbours (spatialaim.analysis.spatial_organization.K_SPATIAL) and shuffles the
+# labels this often for the null.
+K_SPATIAL = 6
+N_PERM = 100
+# Zoom edges: same-state edges in the state's colour, the others pale.
+EDGE_SAME = 0.4         # line width, pt
+EDGE_CROSS = 0.3
+EDGE_PALE = "#DCDCDC"
 ZOOM_BOX = dict(edgecolor="#1e1e1e", linewidth=0.6)
 
 # Colours for the annotated types, most abundant type first. All saturated and
 # of similar weight: a pale colour (sky blue, yellow) makes a map look washed out
 # next to one without it, which is the palette talking, not the mapping.
+# 22 entries, one per type of the largest kidney annotation (the 22 TMS classes),
+# so no two types share a colour; the last eleven are the less distinct ones and go
+# to the rarest types.
 TYPE_COLOURS = ["#0072B2", "#E69F00", "#009E73", "#CC79A7", "#D55E00",
-                "#B2182B", "#7B3294", "#8C6D31", "#4D4D4D", "#999933", "#1B7837"]
+                "#B2182B", "#7B3294", "#8C6D31", "#4D4D4D", "#999933", "#1B7837",
+                "#E7298A", "#66A61E", "#00A6A6", "#A6761D", "#3F48CC", "#F0027F",
+                "#8E0152", "#2D6A4F", "#B35806", "#5E3C99", "#C51B7D"]
 # The second (third, ...) state of the same dominant type turns the type's hue by
 # this much (of a full turn) at the same luminance -- a darker shade instead
 # would hand one map a near-black the other does not have.
 HUE_TURNS = [0.0, 0.08, -0.08]
 
-# Shorter names for the kidney's cell-ontology labels, so the key fits beside a
-# map; a type not listed keeps its own name.
+# Shorter names for the kidney's labels, so the key fits beside a map; a type not
+# listed keeps its own name. The 22 TMS classes (cell_ontology_class), then the
+# targets only Liu et al.'s relabeling (cell_ontology_relabel) adds.
 SHORT_NAMES = {
+    "B cell": "B cell",
+    "NK cell": "NK cell",
+    "T cell": "T cell",
+    "brush cell": "Brush cell",
     "epithelial cell of proximal tubule": "Proximal tubule",
-    "kidney loop of Henle epithelial cell": "Loop of Henle",
-    "endothelial cell": "Endothelial",
-    "immune cell": "Immune",
-    "kidney collecting duct epithelial cell": "Collecting duct",
-    "kidney distal convoluted tubule epithelial cell": "Distal convoluted tubule",
-    "podocyte": "Podocyte",
-    "pericyte": "Pericyte",
+    "fenestrated cell": "Fenestrated",
     "fibroblast": "Fibroblast",
+    "kidney capillary endothelial cell": "Capillary endothelial",
+    "kidney cell": "Kidney cell",
+    "kidney collecting duct epithelial cell": "Collecting duct",
+    "kidney collecting duct principal cell": "Collecting duct principal",
+    "kidney cortex artery cell": "Cortex artery",
+    "kidney distal convoluted tubule epithelial cell": "Distal convoluted tubule",
+    "kidney loop of Henle ascending limb epithelial cell": "Henle ascending limb",
+    "kidney loop of Henle thick ascending limb epithelial cell": "Henle thick asc. limb",
+    "kidney mesangial cell": "Mesangial",
+    "kidney proximal convoluted tubule epithelial cell": "Proximal convoluted",
+    "kidney proximal straight tubule epithelial cell": "Proximal straight",
+    "leukocyte": "Leukocyte",
+    "lymphocyte": "Lymphocyte",
+    "macrophage": "Macrophage",
+    "podocyte": "Podocyte",
+    "glomerular capillary endothelial cell": "Glomerular capillary",
+    "kidney blood vessel cell": "Blood vessel",
+    "kidney loop of Henle epithelial cell": "Loop of Henle",
+    "pericyte": "Pericyte",
+    "plasma cell": "Plasma cell",
 }
 # A type contributes to a state's name in the key if it makes up at least this
 # share of the state's reference cells.
@@ -121,6 +152,28 @@ def metrics(root: Path, k: int) -> dict:
     row = pd.read_csv(root / "k_comparison.csv").set_index("k").loc[k]
     return {m: float(row[m]) for m in ["nhood_mean_self_zscore", "local_purity_zscore",
                                        "modularity_st_expression", "modularity_shared"]}
+
+
+def knn_graph(xy: np.ndarray):
+    """SpatialAIM's spatial graph over these spots: squidpy kNN, K_SPATIAL
+    neighbours (its connectivities, as the analysis step uses them)."""
+    import squidpy as sq  # heavy; only here
+
+    a = ad.AnnData(np.zeros((len(xy), 1), dtype=np.float32))
+    a.obsm["spatial"] = xy
+    sq.gr.spatial_neighbors_knn(a, n_neighs=K_SPATIAL)
+    return a.obsp["spatial_connectivities"].tocoo()
+
+
+def window_metrics(labels: np.ndarray, graph) -> dict:
+    """Mean self z-score and local purity on the window, with SpatialAIM's own
+    functions (graph built from the window's spots, labels shuffled within it)."""
+    from spatialaim.metrics.topology import local_spatial_purity, self_nhood_enrichment
+
+    z = self_nhood_enrichment(labels, graph, N_PERM, np.random.default_rng(0))
+    present = np.unique(labels)
+    return {"nhood_mean_self_zscore": float(np.nanmean(z[present])),
+            "local_purity": float(local_spatial_purity(labels, graph))}
 
 
 # ---------------------------------------------------------------------------
@@ -190,58 +243,56 @@ def describe_states(cell_state: pd.Series, cell_type: pd.Series,
 # drawing
 # ---------------------------------------------------------------------------
 
-def spots(ax, xy: np.ndarray, colours: list[str], size: float) -> None:
-    """All spots in one random order (fixed seed), so no state is drawn on top
-    of the others by its id."""
-    order = np.random.default_rng(0).permutation(len(xy))
-    ax.scatter(xy[order, 0], xy[order, 1], s=size, linewidths=0, rasterized=True,
-               c=[colours[i] for i in order])
+def section_axes(xy: np.ndarray, width: float, window: tuple | None = None):
+    """A frameless figure of ``width`` inches over the spots' extent (or over
+    ``window``), y downwards as in the GUI."""
+    if window is None:
+        (x0, y0), (x1, y1) = xy.min(axis=0), xy.max(axis=0)
+    else:
+        x0, x1, y0, y1 = window
+    fig = plt.figure(figsize=(width, width * (y1 - y0) / (x1 - x0)))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y1, y0)
+    ax.set_aspect("equal")
+    return fig, ax
 
 
 def map_panel(panels: PanelWriter, name: str, xy: np.ndarray, colours: list[str],
               window: tuple | None) -> None:
-    """The section, frameless, at MAP_WIDTH inches; y downwards as in the GUI.
-    With a zoom ``window`` its outline is drawn on the section."""
-    (x0, y0), (x1, y1) = xy.min(axis=0), xy.max(axis=0)
-    fig = plt.figure(figsize=(MAP_WIDTH, MAP_WIDTH * (y1 - y0) / (x1 - x0)))
-    ax = fig.add_axes([0, 0, 1, 1])
-    spots(ax, xy, colours, SPOT_SIZE)
+    """The section at MAP_WIDTH inches, every spot in its state's colour, drawn in
+    one random order (fixed seed) so no state lies on top by its id; the zoom
+    ``window`` outlined."""
+    fig, ax = section_axes(xy, MAP_WIDTH)
+    order = np.random.default_rng(0).permutation(len(xy))
+    ax.scatter(xy[order, 0], xy[order, 1], s=SPOT_SIZE, linewidths=0, rasterized=True,
+               c=[colours[i] for i in order])
     if window is not None:
         wx0, wx1, wy0, wy1 = window
         ax.add_patch(plt.Rectangle((wx0, wy0), wx1 - wx0, wy1 - wy0, fill=False,
                                    zorder=3, **ZOOM_BOX))
-    ax.set_xlim(x0, x1)
-    ax.set_ylim(y1, y0)
-    ax.set_aspect("equal")
     ax.set_axis_off()
     panels.save(fig, name)
 
 
-def zoom_panel(panels: PanelWriter, name: str, xy: np.ndarray, colours: list[str],
-               window: tuple) -> None:
-    """The zoom ``window`` at ZOOM_WIDTH inches, framed like its box on the map."""
-    wx0, wx1, wy0, wy1 = window
-    inside = (xy[:, 0] >= wx0) & (xy[:, 0] <= wx1) & (xy[:, 1] >= wy0) & (xy[:, 1] <= wy1)
-    fig = plt.figure(figsize=(ZOOM_WIDTH, ZOOM_WIDTH * (wy1 - wy0) / (wx1 - wx0)))
-    ax = fig.add_axes([0, 0, 1, 1])
-    spots(ax, xy[inside], [c for c, keep in zip(colours, inside) if keep], ZOOM_SPOT)
-    ax.set_xlim(wx0, wx1)
-    ax.set_ylim(wy1, wy0)
-    ax.set_aspect("equal")
+def zoom_panel(panels: PanelWriter, name: str, xy: np.ndarray, labels: np.ndarray,
+               colour_of: dict, graph, window: tuple) -> None:
+    """The window at ZOOM_WIDTH inches with its neighbourhood graph: the edges
+    between two states pale and underneath, the same-state edges on top in their
+    state's colour; framed like its box on the map."""
+    fig, ax = section_axes(xy, ZOOM_WIDTH, window)
+    segments = np.stack([xy[graph.row], xy[graph.col]], axis=1)
+    same = labels[graph.row] == labels[graph.col]
+    ax.add_collection(LineCollection(segments[~same], colors=EDGE_PALE,
+                                     linewidths=EDGE_CROSS, rasterized=True))
+    ax.add_collection(LineCollection(segments[same], linewidths=EDGE_SAME, rasterized=True,
+                                     colors=[colour_of[v] for v in labels[graph.row][same]]))
     ax.set_xticks([])
     ax.set_yticks([])
     for spine in ax.spines.values():
         spine.set_edgecolor(ZOOM_BOX["edgecolor"])
         spine.set_linewidth(ZOOM_BOX["linewidth"])
     panels.save(fig, name)
-
-
-def key(labels: np.ndarray, colour_of: dict, name_of: dict) -> list[dict]:
-    """The key of one map: per type or state its label, colour and share of
-    spots, largest share first."""
-    share = pd.Series(labels).value_counts(normalize=True)
-    return [{"label": name_of[v], "colour": colour_of[v], "share": round(float(s), 4)}
-            for v, s in share.items()]
 
 
 def main() -> None:
@@ -270,7 +321,6 @@ def main() -> None:
     ann_cells, ann_spots = load_mapping(ann_root, ann["k"])
     ann_states = describe_states(ann_cells, cell_type, colours)
     ann_colour = {s: colours[t] for s, t in ann_states["dominant"].items()}
-    ann_name = ann_states["dominant"].to_dict()
 
     # SpatialAIM
     aim_root = folder / "spatialaim" / args.mapper
@@ -280,21 +330,26 @@ def main() -> None:
 
     panels = PanelWriter(paths.figure_dir(FIGURE, args.mapper) / "kidney_example")
     window = ZOOM_WINDOWS.get(args.pair)
-    for side, colours_ in (("annotation", [ann_colour[s] for s in ann_spots]),
-                           ("spatialaim", [aim_states.loc[s, "colour"] for s in aim_spots])):
-        map_panel(panels, f"map_{side}", xy, colours_, window)
-        if window is not None:
-            zoom_panel(panels, f"zoom_{side}", xy, colours_, window)
+    if window is not None:
+        wx0, wx1, wy0, wy1 = window
+        inside = ((xy[:, 0] >= wx0) & (xy[:, 0] <= wx1)
+                  & (xy[:, 1] >= wy0) & (xy[:, 1] <= wy1))
+        window_graph = knn_graph(xy[inside])
 
-    panels.write_manifest({
-        "selection": selection,
-        "zoom": window,
-        "annotation": {"k": ann["k"], "metrics": metrics(ann_root, ann["k"]),
-                       "key": key(ann_spots, ann_colour, ann_name)},
-        "spatialaim": {"k": aim["k"], "metrics": metrics(aim_root, aim["k"]),
-                       "key": key(aim_spots, aim_states["colour"].to_dict(),
-                                  aim_states["name"].to_dict())},
-    })
+    manifest = {"selection": selection, "zoom": window}
+    for side, spec, root, labels, colour_of in (
+            ("annotation", ann, ann_root, ann_spots, ann_colour),
+            ("spatialaim", aim, aim_root, aim_spots, aim_states["colour"].to_dict())):
+        map_panel(panels, f"map_{side}", xy, [colour_of[v] for v in labels], window)
+        manifest[side] = {"k": spec["k"], "metrics": metrics(root, spec["k"])}
+        if window is not None:
+            zoom_panel(panels, f"zoom_{side}", xy[inside], labels[inside], colour_of,
+                       window_graph, window)
+            manifest[side]["window_metrics"] = window_metrics(labels[inside], window_graph)
+        logger.info("%-10s section z %.1f | window %s", side,
+                    manifest[side]["metrics"]["nhood_mean_self_zscore"],
+                    manifest[side].get("window_metrics"))
+    panels.write_manifest(manifest)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@
 #
 #   a  SpatialAIM vs annotation, per spot | per gene | cell types used
 #   b  the five mappers at the K each proposes, per cell   c per gene
-#      d runtime   e memory
+#      d runtime   e whole run vs one annotation (on d's y axis)
 #   f  the start clusters   g ward cut   h average cut   (UMAPs)
 #
 # The first row is one argument in three panels of identical geometry:
@@ -25,6 +25,7 @@
 # Element construction, text measurement and the file format itself live in
 # spatialaim_experiments.excalidraw; what is here is this figure's own layout.
 
+import argparse
 import json
 import logging
 
@@ -74,7 +75,7 @@ HEADINGS = {
     "mappers_cell": "Comparing mappers, per cell",
     "mappers_gene": "Mappers, per gene",
     "runtime": "Runtime, all K",
-    "memory": "Peak memory",
+    "runtime_vs_annotation": "Full pipeline",
     "start": "Leiden start clusters",
     "ward": "Ward linkage, K = 2",
     "average": "Average linkage, K = 2",
@@ -182,7 +183,7 @@ def build(manifest: dict) -> None:
                             ("mappers_gene", PAD + w_cell + gap, "c")):
         label(name, x, row2, letter)
         drawing.image(name, x, row2, manifest)
-    for i, (name, letter) in enumerate((("runtime", "d"), ("memory", "e"))):
+    for i, (name, letter) in enumerate((("runtime", "d"), ("runtime_vs_annotation", "e"))):
         x = PAD + w_map + gap + i * (w_cost + gap)
         label(name, x, row2, letter)
         drawing.image(name, x, row2, manifest)
@@ -211,10 +212,15 @@ def add_umaps(manifest: dict, width: float) -> None:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--new", action="store_true",
+                    help="write figure_2_new.excalidraw.md and keep the drawing as the backup")
+    args = ap.parse_args()
     manifest = json.loads((PANELS / "panels.json").read_text(encoding="utf-8"))
     build(manifest)
     drawing.check()
-    drawing.write(OUT)
+    drawing.write(OUT.with_name(OUT.name.replace(".excalidraw", "_new.excalidraw")) if args.new
+                  else OUT)
 
 
 if __name__ == "__main__":

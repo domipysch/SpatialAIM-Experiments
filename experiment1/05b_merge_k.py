@@ -21,11 +21,9 @@ run.log only notes that the run was split; the per-K times are in resources.json
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import importlib.util
 import json
 import os
-import re
 import shutil
 import sys
 import tempfile
@@ -41,27 +39,6 @@ HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("run_k", HERE / "05a_run_k.py")
 run_k = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(run_k)
-
-LOG_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - \S+ - \w+ - (.*)$")
-ALIGNER_CALL = re.compile(r"^ReferenceMapper\[\w+\] K=\d+$")
-MAPPED = re.compile(r"^K=\s*\d+ mapped -> ")
-SWEEP_END = re.compile(r"^Comparing K-runs")
-
-
-def phase_times(log: Path) -> dict:
-    """Mapping (aligner call -> mapped) and analysis (mapped -> comparison) of a
-    one-K job, from its log's timestamps."""
-    t = {}
-    for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
-        m = LOG_LINE.match(line)
-        if not m:
-            continue
-        stamp = dt.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S,%f").timestamp()
-        for name, pattern in (("call", ALIGNER_CALL), ("mapped", MAPPED), ("end", SWEEP_END)):
-            if pattern.match(m.group(2)):
-                t.setdefault(name, stamp)
-    return {"seconds_map": round(t["mapped"] - t["call"], 3) if {"call", "mapped"} <= t.keys() else None,
-            "seconds_analysis": round(t["end"] - t["mapped"], 3) if {"mapped", "end"} <= t.keys() else None}
 
 
 def main() -> int:
@@ -135,7 +112,7 @@ def main() -> int:
             "status": "ok",
             "per_k": [{"k": r["k"], "wall_s": r["wall_s"], "peak_rss_tree_mb": r["peak_rss_tree_mb"],
                        "host": r.get("host"), "job_id": r.get("job_id")}
-                      | phase_times(split / f"k_{r['k']:03d}" / "run.log") for r in per_k],
+                      | run_one.phase_times(split / f"k_{r['k']:03d}" / "run.log") for r in per_k],
         } | zipped
         (staging / "run.log").write_text(
             f"split into {len(ks)} one-K jobs (05a_run_k.py); their logs are in "

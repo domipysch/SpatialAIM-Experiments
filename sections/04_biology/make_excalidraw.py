@@ -19,9 +19,10 @@
 #   g sketch | h modularity over the slice | i modularity over the reference
 #
 # The top row is the worked example and the overview: one tissue mapped both
-# ways (04_kidney_example/, whose panels.json also supplies each map's key and
-# metrics), then on how many references SpatialAIM beats the annotation (one bar
-# per metric). It is drawn in one version only: by default nearest centroid's
+# ways (04_kidney_example/, whose panels.json also supplies each map's
+# neighbourhood enrichment), then on how many references SpatialAIM beats the
+# annotation (one count per metric). It is drawn in one version only: by default
+# nearest centroid's
 # (``--top-row`` / ``--no-top-row`` override). Without it the letters start at
 # the sketch, a-f. Letters are handed out in reading order, so they never need
 # renumbering by hand.
@@ -76,19 +77,20 @@ BAR_GAP = 26
 # leave one word alone -- ``wrap`` keeps a break that is already in the text and
 # is only the fallback for a caption that still does not fit its cell.
 TOP_ROW_DEFAULT = {"nearest_centroid"}   # the versions that get the top row
-# The top row's captions; {k} is the map's number of cell types.
+# The top row's captions.
 HEAD_WINS = "SpatialAIM against\nthe annotation"
-HEAD_MAPS = {"annotation": "Kidney, mapped\nannotation (K = {k})",
-             "spatialaim": "Kidney, mapped\nSpatialAIM (K = {k})"}
-# Under each map: its neighbourhood enrichment, then its key, both smaller than
+HEAD_MAPS = {"annotation": "Kidney, mapped annotation",
+             "spatialaim": "Kidney, mapped SpatialAIM"}
+# Beside each small map: the zoom window's neighbourhood enrichment, smaller than
 # a caption.
+ENRICHMENT_NOTE = "neighborhood\nenrichment\ndiagonal score\nz = {z:.0f}"
 FS_KEY = 32
-KEY_DOT = 22
-KEY_INDENT = 32       # dot to label
-KEY_GAP = 26          # between two entries on a line
-KEY_PITCH = FS_KEY * 1.25
-MAP_GAP = 10          # map bottom to the metric line
-ZOOM_GAP = 24         # zoom to the key beside it
+CAPTION_GAP = 12      # top row: a and b's caption to their small map
+# wins to the colour bar under it; negative because the bar's PNG carries its
+# own top margin
+WINS_BAR_GAP = -10
+MAP_GAP = 16          # small map to the zoom below it
+NOTE_GAP = 24         # small map to the note beside it
 
 ROWS = [
     {
@@ -124,58 +126,50 @@ def image(name: str, x, y, manifest: dict, folder=None) -> tuple[float, float]:
     return element["width"], element["height"]
 
 
-def key_block(x: float, y: float, width: float, entries: list[dict]) -> float:
-    """A map's key: a dot and a label per entry, flowed left to right and
-    wrapped onto a new line when ``width`` is used up; a label wider than
-    ``width`` on its own is broken over lines. Returns the y below the key."""
-    cursor, line, line_h = x, y, KEY_PITCH
-    for entry in entries:
-        label = wrap(entry["label"], width - KEY_INDENT, FS_KEY)
-        w = KEY_INDENT + text_size(label, FS_KEY)[0]
-        if cursor > x and cursor + w > x + width:
-            cursor, line, line_h = x, line + line_h, KEY_PITCH
-        drawing.dot(cursor + KEY_DOT / 2, line + FS_KEY * 0.6, KEY_DOT, entry["colour"])
-        text(label, cursor + KEY_INDENT, line, size=FS_KEY)
-        line_h = max(line_h, text_size(label, FS_KEY)[1] + FS_KEY * 0.25)
-        cursor += w + KEY_GAP
-    return line + line_h
-
-
 def top_row(manifest: dict, kidney: dict, letters, y: float) -> float:
-    """a, b: the kidney mapped as annotated and by SpatialAIM, each with its
-    neighbourhood enrichment underneath, then its zoom (the boxed window) and its
-    key side by side; c: the win counts. The three
-    letters and captions share one line, the images the line below the tallest
-    caption, and the slack is split into two equal gaps. Returns the y of the
-    next row's letter line."""
+    """a, b: the kidney mapped as annotated and by SpatialAIM -- per side a small
+    map of the whole section (locating the boxed window) with the window's
+    neighbourhood enrichment beside it, and the window itself large underneath,
+    its neighbourhood graph drawn; c: the win counts, the scatters' colour bar
+    under them. The three letters and
+    captions share one line, the images the line below the tallest caption, and
+    the slack is split into two equal gaps. Returns the y of the next row's
+    letter line."""
     folder = kidney["folder"]
     w_wins = manifest["panels"]["wins"]["w"]
-    w_map = kidney["panels"]["map_annotation"]["w"]
-    gap = (WIDTH - 2 * PAD - w_wins - 2 * w_map) / 2
-    xs = [PAD, PAD + w_map + gap, PAD + 2 * w_map + 2 * gap]
+    # a column is as wide as the zoom (or the map, without one)
+    w_col = kidney["panels"]["zoom_annotation" if kidney.get("zoom") else "map_annotation"]["w"]
+    gap = (WIDTH - 2 * PAD - w_wins - 2 * w_col) / 2
+    xs = [PAD, PAD + w_col + gap, PAD + 2 * w_col + 2 * gap]
     sides = ["annotation", "spatialaim"]
-    heads = [HEAD_MAPS[s].format(k=kidney[s]["k"]) for s in sides] + [HEAD_WINS]
-    top = y + max(h.count("\n") + 1 for h in heads) * LINE + HEAD_GAP
+    heads = [HEAD_MAPS[s] for s in sides] + [HEAD_WINS]
+    # each cell's images start right under its own caption (a and b have one
+    # line, c two), not under the row's tallest one; the maps reach their PNG's
+    # top edge, so they keep CAPTION_GAP from the caption, while the wins panel
+    # carries its own top margin
+    tops = [y + (h.count("\n") + 1) * LINE + HEAD_GAP + (CAPTION_GAP if i < 2 else 0)
+            for i, h in enumerate(heads)]
     for head, x in zip(heads, xs):
         text(next(letters), x, y, size=FS_LETTER)
         text(head, x + HEAD_DX, y + 9)
 
+    top = tops[2]
     _w, h = image("wins", xs[2], top, manifest)
-    bottom = top + h
-    for side, x in zip(sides, xs[:2]):
-        _w, h_map = image(f"map_{side}", x, top, kidney, folder)
-        z = kidney[side]["metrics"]["nhood_mean_self_zscore"]
-        line = top + h_map + MAP_GAP
-        text(f"Neighbourhood enrichment z = {z:.0f}", x, line, size=FS_KEY, colour=GREY)
-        below = line + KEY_PITCH * 1.3
-        # the zoom (the window boxed on the map) at the left, the key beside it
+    # the scatters' colour bar under the wins, where the top row has room for it
+    _w, h_bar = image("dk_bar", xs[2], top + h + WINS_BAR_GAP, manifest)
+    bottom = top + h + WINS_BAR_GAP + h_bar
+    for side, x, top in zip(sides, xs[:2], tops[:2]):
+        w_map, h_map = image(f"map_{side}", x, top, kidney, folder)
+        below = top + h_map
         if kidney.get("zoom"):
-            w_zoom, h_zoom = image(f"zoom_{side}", x, below, kidney, folder)
-            key_x, key_w = x + w_zoom + ZOOM_GAP, w_map - w_zoom - ZOOM_GAP
-            bottom = max(bottom, below + h_zoom)
-        else:
-            key_x, key_w = x, w_map
-        bottom = max(bottom, key_block(key_x, below, key_w, kidney[side]["key"]))
+            z = kidney[side]["window_metrics"]["nhood_mean_self_zscore"]
+            # bottom-aligned with the map, so its last line sits just above the zoom
+            note = ENRICHMENT_NOTE.format(z=z)
+            text(note, x + w_map + NOTE_GAP, below - text_size(note, FS_KEY)[1],
+                 size=FS_KEY, colour=GREY)
+            _w, h_zoom = image(f"zoom_{side}", x, below + MAP_GAP, kidney, folder)
+            below += MAP_GAP + h_zoom
+        bottom = max(bottom, below)
     return bottom + ROW_GAP
 
 
@@ -230,10 +224,14 @@ def build(manifest: dict, kidney: dict | None) -> None:
 
         y = top + h_row + ROW_GAP
 
-    # one colour bar for all four scatters, centred under the block
-    bar = panels["dk_bar"]
-    image("dk_bar", (WIDTH - bar["w"]) / 2, y - ROW_GAP + BAR_GAP, manifest)
-    bottom = y - ROW_GAP + BAR_GAP + bar["h"] + PAD
+    # one colour bar for all four scatters: under the wins in the top row, or,
+    # without a top row, centred under the block
+    if kidney is None:
+        bar = panels["dk_bar"]
+        image("dk_bar", (WIDTH - bar["w"]) / 2, y - ROW_GAP + BAR_GAP, manifest)
+        bottom = y - ROW_GAP + BAR_GAP + bar["h"] + PAD
+    else:
+        bottom = y - ROW_GAP + PAD
     logger.info("canvas %.0f x %.0f units  (%.2f x %.2f in)",
                 WIDTH, bottom, WIDTH / SCALE, bottom / SCALE)
 

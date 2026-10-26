@@ -70,6 +70,11 @@ PER_SPOT = ("*.h5ad", "spot_to_state_mapping*.csv", "cossim-per-spot-*",
             "coherence_per_spot.csv")
 ZIP_MAX_FILE_MB = 2  # any other per-K file above this is left out too (and counted)
 LOG_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{3}) - ")
+# phases of a one-K run, from spatialaim's own log lines (see phase_times)
+LOG_MESSAGE = re.compile(r"^\S+ \S+ - \S+ - \w+ - (.*)$")
+ALIGNER_CALL = re.compile(r"^ReferenceMapper\[\w+\] K=\d+$")
+MAPPED = re.compile(r"^K=\s*\d+ mapped -> ")
+SWEEP_END = re.compile(r"^Comparing K-runs")
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +216,22 @@ def _log_epoch(line: str) -> float | None:
         return None
     stamp = dt.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
     return stamp.timestamp() + int(m.group(2)) / 1000
+
+
+def phase_times(log: Path) -> dict:
+    """Mapping (aligner call -> mapped) and analysis (mapped -> comparison) of a
+    one-K job, from its log's timestamps. The aligner call is logged by the
+    reference aligners only (tacco, dot, tangram)."""
+    t = {}
+    for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+        stamp, m = _log_epoch(line), LOG_MESSAGE.match(line)
+        if stamp is None or not m:
+            continue
+        for name, pattern in (("call", ALIGNER_CALL), ("mapped", MAPPED), ("end", SWEEP_END)):
+            if pattern.match(m.group(1)):
+                t.setdefault(name, stamp)
+    return {"seconds_map": round(t["mapped"] - t["call"], 3) if {"call", "mapped"} <= t.keys() else None,
+            "seconds_analysis": round(t["end"] - t["mapped"], 3) if {"mapped", "end"} <= t.keys() else None}
 
 
 # ---------------------------------------------------------------------------

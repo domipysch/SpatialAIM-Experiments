@@ -13,6 +13,7 @@ sections/               one folder per results section of the paper, each holdin
   02_reconstruction/    Fig. 2.2  reconstruction & granularity vs the annotation
   03_robustness/        Fig. 2.3  annotation granularity   (own runs, pair 1)
   04_biology/           Fig. 2.4  biological & topological plausibility
+  05_gui/               Fig. 2.5  the GUI on colorectal cancer (GUI runs, pair 2)
 src/spatialaim_experiments/    the helpers every section shares (installed, see below)
 ```
 

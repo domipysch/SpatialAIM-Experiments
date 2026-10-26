@@ -92,7 +92,7 @@ SKETCH_COLOURS = ("#D55E00", "#0072B2", "#009E73")
 # The space the nodes are laid out in -- schematic, the layouts are synthetic.
 SKETCH_AXES = {"sketch_spatial": ("x", "y"), "sketch_coherence": ("UMAP 1", "UMAP 2")}
 
-BAR_SIZE = (3.45, 0.66)
+BAR_SIZE = (1.96, 0.82)   # as wide as the wins panel, under which it sits
 
 # Win counts: one panel, a bar per metric, all in the mapper's own colour. It shares the top row with the kidney
 # maps of 04_kidney_example/, so it is exactly as tall as they are (2.3 in wide
@@ -100,8 +100,8 @@ BAR_SIZE = (3.45, 0.66)
 # read left of them as normal text; the foot holds the count axis and its title.
 WINS_HEIGHT = 2.3 * 812 / 1150
 WINS_LEFT, WINS_PLOT_W, WINS_RIGHT = 1.12, 0.72, 0.12
-WINS_FOOT, WINS_TOP = 0.50, 0.08
-WINS_BAR = 0.6        # bar height, of the 1 between two metrics
+WINS_FOOT, WINS_TOP = 0.36, 0.08
+WINS_NUMBER_SIZE = 13  # pt, the "9/10" per metric
 WINS_LABELS = {
     "nhood_mean_self_zscore": "Neighbourhood\nenrichment",
     "local_purity_zscore": "Local spatial\npurity",
@@ -211,13 +211,14 @@ def panel_scatter(cell: pd.DataFrame, metric: str) -> None:
 def panel_dk_bar() -> None:
     """The one colour bar the four scatters share."""
     fig = plt.figure(figsize=BAR_SIZE)
-    bar = fig.add_axes([0.16, 0.58, 0.68, 0.24])
+    bar = fig.add_axes([0.14, 0.66, 0.72, 0.19])
     bar.imshow(np.linspace(-DK_LIMIT, DK_LIMIT, 256)[None, :], cmap=CMAP_DK,
                aspect="auto", extent=(-DK_LIMIT, DK_LIMIT, 0, 1))
     bar.set_yticks([])
     bar.set_xticks([-DK_LIMIT, 0, DK_LIMIT])
     bar.set_xticklabels([f"≤{-DK_LIMIT}", "0", f"≥+{DK_LIMIT}"])
-    bar.set_xlabel("Δ number of cell types  (SpatialAIM − annotation)", labelpad=2.5)
+    bar.set_xlabel("Δ number of cell types\n(SpatialAIM − annotation)", labelpad=2.5,
+                   linespacing=1.05)
     bar.spines[:].set_visible(False)
     bar.tick_params(length=1.5, pad=1.0)
     panels.save(fig, "dk_bar")
@@ -249,9 +250,10 @@ def wins(df: pd.DataFrame, metric: str) -> pd.DataFrame:
 
 
 def panel_wins(counts: dict[str, pd.DataFrame], mapper: str) -> None:
-    """One bar per metric: on how many references SpatialAIM beats the annotation
-    with ``mapper``, and a pale line at half the references, where the two are
-    even. A reference is a win when SpatialAIM's value is strictly higher."""
+    """One line per metric: its name, and as a large number in the mapper's colour
+    on how many references SpatialAIM beats the annotation with ``mapper``
+    ("9/10"). No graphic. A reference is a win when SpatialAIM's value is strictly
+    higher."""
     metrics = list(counts)
     wins_ = [int(counts[m].loc[mapper, "wins"]) for m in metrics]
     n = max(int(counts[m].loc[mapper, "n"]) for m in metrics)
@@ -260,23 +262,23 @@ def panel_wins(counts: dict[str, pd.DataFrame], mapper: str) -> None:
     fig = plt.figure(figsize=(w, h))
     ax = fig.add_axes((WINS_LEFT / w, WINS_FOOT / h,
                        WINS_PLOT_W / w, (h - WINS_FOOT - WINS_TOP) / h))
-    ax.axvline(n / 2, color=PALE, lw=0.8, zorder=1)
-    ax.barh(range(len(metrics)), wins_, height=WINS_BAR, zorder=2,
-            color=MAPPER_COLOURS[mapper])
-    ax.set_yticks(range(len(metrics)))
+    for row, won in enumerate(wins_):
+        ax.text(1.0, row, f"{won}/{n}", ha="right", va="center",
+                fontsize=WINS_NUMBER_SIZE, fontweight="bold", color=MAPPER_COLOURS[mapper])
+    rows = range(len(metrics))
+    ax.set_yticks(list(rows))
     ax.set_yticklabels([WINS_LABELS[m] for m in metrics], linespacing=1.0)
     ax.set_ylim(len(metrics) - 0.4, -0.6)      # first metric on top, as in the rows below
-    ax.set_xlim(0, n)
-    # none, half (the pale line) and all of the references
-    ax.xaxis.set_major_locator(mpl.ticker.FixedLocator([0, n / 2, n]))
-    ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.set_xlim(0, 1)
+    ax.set_xticks([])
     # centred on the whole image, not the plotting box: the box is narrower than
     # the title, the empty corner under the metric names is not
-    fig.text(0.5, 0.02 / h, f"#References out of {n} where\nSpatialAIM improves metric",
+    fig.text(0.5, 0.02 / h, "References where\nSpatialAIM is better",
              ha="center", va="bottom", linespacing=1.05,
              fontsize=mpl.rcParams["axes.labelsize"])
-    ax.tick_params(pad=1.5)
+    ax.tick_params(axis="y", length=0, pad=3)
     bare(ax)
+    ax.spines[:].set_visible(False)
     panels.save(fig, "wins")
 
 

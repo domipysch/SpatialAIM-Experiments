@@ -8,50 +8,65 @@ looks like.
 The example is pair 4 (`04_mouse-kidney`, one MERFISH section of 126,547 cells)
 with nearest centroid and average linkage. On this mapper and tree, the kidney is the
 reference where SpatialAIM's gain is largest: neighbourhood enrichment rises from 142
-(annotation) to 285 (SpatialAIM). The next largest gain is breast cancer, 151 → 178.
+(annotation, 22 TMS classes) to 285 (SpatialAIM). The next largest gain is breast cancer, 151 → 178.
 
 ## What is shown
 
-Exactly the two mappings Experiment 1 compares for this pair, mapper and tree,
-read from its summary (`spatialaim_experiments.exp1`) — nothing is chosen here:
+Two mappings of Experiment 1 for this pair, mapper and tree, read from its summary
+(`spatialaim_experiments.exp1`):
 
 | side | start | K | kidney |
 |---|---|---|---|
-| annotation | the annotation `exp1.paired` compares against: of the reference's annotations, the one with the highest `score_overall` | T, its number of types (identity cut) | `cell_ontology_class`, the 22 Tabula Muris Senis classes, K = 22 |
+| annotation | by default the annotation `exp1.paired` compares against (of the reference's annotations, the one with the highest `score_overall`); `--ann_key` picks another | T, its number of types (identity cut) | **`cell_ontology_relabel`**, Liu et al.'s 13 types, K = 13 (`--ann_key cell_ontology_relabel`) |
 | SpatialAIM | the start `exp1.best_start` picks | its `best.overall` | the Leiden over-clustering, K = 6 |
 
 The kidney reference carries two annotations: TMS's own `cell_ontology_class` (22
-classes) and Liu et al.'s coarse-grained `cell_ontology_relabel` (13). The 22-class one
-is the baseline because its `score_overall` is higher, by a small margin (0.420 vs
-0.419). The SpatialAIM side is a close call as well: the annotation start
-`cell_ontology_class` at its own best K = 6 scores 0.496, against 0.507 for Leiden.
+classes) and Liu et al.'s coarse-grained `cell_ontology_relabel` (13). The figure shows
+Liu's 13 types, the annotation of the paper the MERFISH section comes from. This
+departs from the scatters of figure 4, whose kidney baseline is the 22 TMS classes:
+they score higher, by a small margin (`score_overall` 0.420 vs 0.419). The neighbourhood
+enrichment of the shown annotation is therefore 125, not the scatters' 142.
 
 The per-spot mappings of Experiment 1 stay on the cluster, so step 1 recomputes the
 two mappings locally, at those two Ks only, and checks their metrics against the
 summary.
 
-Colours: every annotated type has one colour. A SpatialAIM state takes the colour
-of the annotated type that dominates its reference cells, so a merge shows as one
-colour covering several types; a second state dominated by the same type gets
-that colour's hue turned at the same luminance (and a numbered name in the key).
-All colours are saturated and of similar weight: a pale colour in one map, or a
-near-black in the other, would make one map look washed out against the other
-for reasons of palette alone. Spots are drawn in a random order (fixed seed):
-which colour ends up on top where spots overlap is then decided by how many
-spots each state has there, not by its id.
+The figure is about neighbourhood enrichment, not about which cell types these are,
+so no state is named:
 
-Under each map, a zoom shows one window of the section (boxed on both maps) at
-spot level, where a mixed and a coherent mapping differ visibly whatever the
-colours. The window is set per pair in `ZOOM_WINDOWS` (`02_panels.py`); the
-kidney's crosses the cortex–medulla border.
+- **Maps** (whole section, small): every spot in the colour of its state. They only
+  locate the zoom window, which is boxed.
+- **Zooms** (large): the window with the neighbourhood graph drawn. An edge joining
+  two spots of the same state is drawn in that state's colour, an edge between two
+  states pale grey underneath. Neighbourhood enrichment counts exactly the
+  same-state edges against a label shuffle, so more colour and less grey is a
+  higher z-score.
+- **Beside each map**: the mean self z-score on the window (16 vs 46). The
+  whole-section values (125 vs 285) stay in `panels.json`.
+
+The graph is SpatialAIM's own: squidpy's spatial kNN with 6 neighbours, the graph
+the analysis step builds (`K_SPATIAL`). The window's z-score uses SpatialAIM's own
+function on the graph rebuilt from the window's spots, shuffling within the window.
+On the whole section the same code reproduces Experiment 1 exactly. Z-scores grow
+with the number of spots, so compare the two maps on the same window, not the window
+with the whole section.
+
+State colours (edges only): every annotated type has one colour. A SpatialAIM state
+takes the colour of the annotated type that dominates its reference cells; a second
+state dominated by the same type gets that colour's hue turned at the same luminance.
+
+The window is set per pair in `ZOOM_WINDOWS` (`02_panels.py`). The kidney's, 9,000 x
+7,875 units with about 4,000 spots, sits in the lower part of the section and spans
+medulla, the NAPSA-high proximal-tubule ring and cortex (about 22 / 48 / 23 % of
+its spots in SpatialAIM's states).
 
 ## Running it
 
 From `spatialaim_env`, in this order:
 
 ```bash
-python sections/04_biology/04_kidney_example/01_run_mappings.py   # the two mappings -> Data/02_Results/biology_example/
-python sections/04_biology/04_kidney_example/02_panels.py         # the two maps -> figure_4/nearest_centroid/kidney_example/
+python sections/04_biology/04_kidney_example/01_run_mappings.py --ann_key cell_ontology_relabel   # the two mappings -> Data/02_Results/biology_example/
+python sections/04_biology/04_kidney_example/02_panels.py         # maps and zooms -> figure_4/nearest_centroid/kidney_example/
 python sections/04_biology/panels.py --mapper nearest_centroid
 python sections/04_biology/make_excalidraw.py --mapper nearest_centroid
 ```
@@ -61,13 +76,13 @@ Both scripts take `--pair`, `--mapper` and `--tree` (defaults: 4, `nearest_centr
 It checks only the K, not the data, so pass `--force` whenever the dataset or the
 Experiment 1 summary has changed.
 
-`02_panels.py` shortens the annotated type names for the key via `SHORT_NAMES`. A
-name without an entry is shown in full, so keep the entries in line with the
-annotation that is shown (currently the 22 TMS classes).
+`02_panels.py` needs squidpy for the graph: as for `spatialaim run`, prepend the
+env's folders to PATH first, or it crashes silently. Its log names each SpatialAIM
+state by its dominant annotated types (`SHORT_NAMES`), for reference only.
 
 ## Files
 
 | file | does |
 |---|---|
 | `01_run_mappings.py` | decides the two mappings from the Experiment 1 summary, runs `spatialaim run` for each at its one K, writes `selection.json`, compares the metrics |
-| `02_panels.py` | colours both mappings consistently and writes the two maps, the two zooms and `panels.json` (sizes, keys, metrics, zoom window) for `make_excalidraw.py` |
+| `02_panels.py` | writes the two small maps, the two zooms with their graph and `panels.json` (sizes, metrics on the section and the window, zoom window) for `make_excalidraw.py` |

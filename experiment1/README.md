@@ -59,6 +59,7 @@ scratch.
 | `03_status.py` | done / failed / missing per stage and mapper, cache misses, OOM suspects, and the `sbatch --array=…` lines that resubmit what is unfinished |
 | `04_summarize.py` | → `summary/` (below) |
 | `05a_run_k.py`, `05a_run_k.tinyfat.sbatch`, `05b_merge_k.py` | only for DOT on unit 189 (pair 93, breast cancer, Leiden start), which does not fit 24 h: one job per K, then merged into the normal run folder (step 5b) |
+| `06_single_k.py`, `06_single_k.tinyfat.sbatch` | timing only: mapping one annotation (K = T) per annotation unit and mapper, for figure 2's runtime comparison (step 5c) |
 | *helpers, not run by hand* | |
 | `config.sh` | shared settings, sourced by everything: `$WORK/spatialaim_exp1` layout, conda in `$WORK`, proxy, caches off `$HOME`, thread pinning |
 | `units.tsv`, `grid.py` | the 193 units and the walltimes; `python grid.py array leiden\|annotation [--test]` prints an `--array` list; `python grid.py units` rewrites `units.tsv` (only if the datasets change) |
@@ -249,6 +250,27 @@ jobs** and its peak memory the largest of them (`resources.json` carries `split_
 `per_k` list with each job's time, memory, mapping and analysis seconds). Every K job loads the scaffold and the slice on its own, so the sum is a little
 above what one sweep would take -- say so where the timing is reported.
 
+### 5c. Runtime of mapping one annotation
+
+Figure 2 compares a whole SpatialAIM run (Leiden scaffold + every K) with mapping one annotation.
+The stage-B annotation runs sweep K = 1…T, so they do not give the latter. `06_single_k.py` runs
+`spatialaim run --k_min T --k_max T` per annotation unit (99) and mapper (5) on the existing
+annotation scaffold, ward only (at K = T the cut is every leaf), measured exactly like stage B
+(same node type, 8 threads, 64 GB, scaffold copied outside the timer). It keeps only `run.log`,
+`resources.json` and `DONE` under `$EXP1_ROOT/single_k/<pair_dir>/<start_tag>/<mapper>/`: no
+results, which stay those of the sweeps. Use the same pinned spatialaim as the grid
+(`meta.json` lists every version seen).
+
+```bash
+export EXP1_ROOT=$EXP1_BASE/run
+for m in nearest_centroid wann tacco tangram dot; do
+  sbatch.tinyfat -J exp1_T_$m --array=$(python grid.py array annotation)%20 06_single_k.tinyfat.sbatch run $m
+done
+python 06_single_k.py --missing             # per mapper: done / 99, and the --array to resubmit
+```
+
+A job over the 2 h limit (DOT, if any) is resubmitted with `--time=04:00:00`.
+
 ### 6. Summary and pull
 
 ```bash
@@ -265,7 +287,8 @@ scp -r "csnhr:<WORK>/spatialaim_exp1/run/summary" $D
 ```powershell
 python sections/02_reconstruction/panels.py           # panels into the vault (safe)
 foreach ($m in "nearest_centroid", "wann", "tacco", "dot", "tangram") { python sections/04_biology/panels.py --mapper $m }
-python sections/02_reconstruction/make_excalidraw.py  # OVERWRITES the hand-edited drawing
+python sections/02_reconstruction/make_excalidraw.py  # OVERWRITES the hand-edited drawing (--new: writes figure_2_new instead)
+python sections/02_reconstruction/make_excalidraw_s6.py  # supplementary figure 6 (peak memory)
 python sections/04_biology/make_excalidraw.py --mapper <m>  # idem, per mapper
 ```
 
@@ -280,5 +303,6 @@ only if you want the layout regenerated.
 | `all_k_per_run.csv.gz` | every `k_comparison.csv` row with the run's keys, for anything beyond the figures |
 | `resources_stage_b.csv` | per stage-B run: `wall_s`, `cpu_user_s`, `cpu_sys_s`, `peak_rss_tree_mb`, `peak_rss_proc_mb`, `peak_rss_children_mb`, host/CPU/GPU, plus `scaffold_build_s`, `scaffold_peak_rss_tree_mb` and `wall_with_scaffold_s` |
 | `resources_stage_a.csv` | per stage-A build: the same measurements plus `scaffold_s` (log-timed, to the cache write) and `scaffold_mb` |
+| `resources_single_k.csv` | per one-annotation run (step 5c): the stage-B measurements plus `k` (= T), `cache_hit`, `seconds_map` (aligner call → mapped; tacco, dot and tangram only), `seconds_analysis`, `scaffold_build_s`, `wall_with_scaffold_s` |
 | `missing.csv` | grid runs without `DONE` |
-| `meta.json` | counts (grid runs, done, missing), spatialaim version(s) |
+| `meta.json` | counts (grid runs, done, missing, `single_k_done`), spatialaim version(s) |
