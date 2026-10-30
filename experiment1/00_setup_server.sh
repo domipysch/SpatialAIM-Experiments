@@ -1,51 +1,37 @@
 #!/bin/bash -l
-# Experiment 1 - one-time setup on tinyx.nhr.fau.de.
+# Experiment 1: one-time setup of all conda envs on tinyx.nhr.fau.de (run on the frontend).
 #
-#   bash 00_setup_server.sh            # on the frontend: clone, spatialaim_env, tangram_env,
-#                                      # tacco_env, dot_env, then the checks
-#   bash 00_setup_server.sh check      # smoke checks only (frontend)
+#   SPATIALAIM_VERSION=1.5.0 bash 00_setup_server.sh   # create the envs, then run the checks
+#   bash 00_setup_server.sh check                       # run the checks only
 #
-# Tangram runs on TinyFat's CPUs (run_tangram.py falls back to cpu without CUDA),
-# so tangram_env needs no GPU node; an env built with the CUDA pytorch works too.
-#
-# Idempotent and non-destructive: an existing env or clone is reused; to rebuild
-# one, remove it yourself first (`conda env remove -n <env>`).
-#
-#   SPATIALAIM_COMMIT   commit of SpatialAIM-Repository to pin (default below)
+# Existing envs are reused; remove one first (`conda env remove -n <env>`) to rebuild it.
+# spatial-aim is always reinstalled from PyPI at SPATIALAIM_VERSION.
+# Tangram runs on CPU here, so tangram_env needs no GPU node.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=config.sh
-source "$HERE/config.sh" || exit 1   # before `set -u`: module/conda init read unset variables
+source "$HERE/config.sh" || exit 1   # sourced before `set -u`: module/conda init read unset variables
 set -euo pipefail
 
-SPATIALAIM_COMMIT="${SPATIALAIM_COMMIT:-5a97b42375af2ae18e69a7c151f4860af2c4726b}"
-REPO_URL="https://github.com/domipysch/SpatialAIM-Repository.git"
-REPO="$EXP1_CODE/SpatialAIM-Repository"
-RA_DIR="$REPO/src/spatialaim/reference_aligners"
+SPATIALAIM_VERSION="${SPATIALAIM_VERSION:-}"
 WHAT="${1:-base}"
-mkdir -p "$HERE/logs"   # #SBATCH --output=logs/...: Slurm does not create it
+mkdir -p "$HERE/logs"   # Slurm does not create the --output folder itself
 
 log() { printf '\n=== %s\n' "$*"; }
 env_exists() { conda env list | awk '{print $1}' | grep -qx "$1"; }
 
-# Runtime deps of spatial-aim from PyPI (pandas < 3: spatialaim's own h5ad
-# writes trip anndata's nullable-string guard under pandas 3), then the pinned
-# clone itself with --no-deps. psutil is for run_one.py's memory sampling.
-SPATIALAIM_DEPS=(
-  "numpy>=1.26" "scipy>=1.11" "pandas>=2.2,<3" "pyyaml>=6"
-  "anndata>=0.12" "scanpy>=1.11" "squidpy>=1.4"
-  "igraph>=0.11" "leidenalg>=0.10" "umap-learn>=0.5"
-  "streamlit>=1.40" "plotly>=5.20" "kaleido>=0.2"
-  "matplotlib>=3.9" "scikit-learn>=1.4" "psutil>=5.9"
-)
+# Print the installed package's reference_aligners folder (aligner env specs and wrappers).
+ra_dir() {
+  conda run -n "$SPATIALAIM_ENV" python -c \
+    "import os, spatialaim.reference_aligners as m; print(os.path.dirname(m.__file__))"
+}
+
+# Extra packages for the runner: psutil samples memory; pandas < 3 avoids anndata's string-write error.
+EXTRA_DEPS=("pandas>=2.2,<3" "psutil>=5.9")
 
 setup_base() {
-  log "Clone SpatialAIM-Repository @ $SPATIALAIM_COMMIT"
-  mkdir -p "$EXP1_CODE"
-  [[ -d "$REPO/.git" ]] || git clone "$REPO_URL" "$REPO"
-  git -C "$REPO" fetch --quiet origin
-  git -C "$REPO" checkout --quiet "$SPATIALAIM_COMMIT"
-  git -C "$REPO" log -1 --oneline
+  [[ -n "$SPATIALAIM_VERSION" ]] || { echo "set SPATIALAIM_VERSION to the PyPI release of spatial-aim to pin" >&2; exit 2; }
 
+  # spatialaim_env: Python 3.13 with spatial-aim from PyPI.
   if env_exists "$SPATIALAIM_ENV"; then
     log "$SPATIALAIM_ENV exists - reusing"
   else
@@ -53,11 +39,13 @@ setup_base() {
     conda create -y -n "$SPATIALAIM_ENV" python=3.13 pip
   fi
   conda run --no-capture-output -n "$SPATIALAIM_ENV" python -m pip install --upgrade pip
-  conda run --no-capture-output -n "$SPATIALAIM_ENV" python -m pip install "${SPATIALAIM_DEPS[@]}"
-  # non-editable: the installed code cannot drift if someone touches the clone
+  log "Install spatial-aim==$SPATIALAIM_VERSION from PyPI"
   conda run --no-capture-output -n "$SPATIALAIM_ENV" python -m pip install \
-    --no-deps --force-reinstall "$REPO"
+    --force-reinstall --no-cache-dir "spatial-aim==$SPATIALAIM_VERSION" "${EXTRA_DEPS[@]}"
 
+  # tangram_env, tacco_env, dot_env: from the env specs shipped in the package.
+  local RA_DIR
+  RA_DIR="$(ra_dir)"
   for name in tangram tacco dot; do
     if env_exists "${name}_env"; then
       log "${name}_env exists - reusing"
@@ -66,17 +54,15 @@ setup_base() {
       conda env create -f "$RA_DIR/environment_${name}.yml"
     fi
   done
-  # The GitHub repo saezlab/DOT installs the R package DOTr (run_dot.R: library(DOTr)).
-  # A non-interactive install without a CRAN mirror only warns and exits 0, so
-  # set one, and verify by loading the package.
+
+  # DOTr: the R package DOT's wrapper loads, installed into dot_env from GitHub.
   if dotr_loads; then
     log "DOTr R package present"
   else
-    # DOTr's CRAN deps fields + maps as conda binaries: building maps from source
-    # on tinyx fails ("CPU ISA level is lower than required"). r-fields links
-    # libopenblas.so.0 directly, which the env (libblas = mkl, via pytorch) lacks.
+    # Its R dependencies come as conda binaries: building r-maps from source fails on tinyx.
     log "Install r-fields + r-maps (conda-forge) into dot_env"
     conda install -y -n dot_env --override-channels -c conda-forge r-fields r-maps libopenblas
+    # A CRAN mirror must be set, or the install only warns and still exits 0.
     log "Install the DOTr R package from GitHub (saezlab/DOT)"
     conda run --no-capture-output -n dot_env Rscript -e \
       "options(repos = c(CRAN = 'https://cloud.r-project.org')); remotes::install_github('saezlab/DOT', upgrade = 'never')"
@@ -85,19 +71,30 @@ setup_base() {
   fi
 }
 
+# True if dot_env can load DOTr and its dependency fields.
 dotr_loads() {
   conda run -n dot_env Rscript -e 'suppressMessages({library(fields); library(DOTr)})' >/dev/null 2>&1
 }
 
 check() {
+  # spatial-aim: installed version, and new enough for this experiment.
   log "spatialaim"
   conda run --no-capture-output -n "$SPATIALAIM_ENV" spatialaim --version
+  if conda run -n "$SPATIALAIM_ENV" spatialaim run --help | grep -q no_leiden_start; then
+    echo "OK   spatialaim run has --no_leiden_start"
+  else
+    echo "FAIL spatialaim is older than this experiment: no --no_leiden_start"
+  fi
   conda run --no-capture-output -n "$SPATIALAIM_ENV" python -c "import psutil, spatialaim; print('psutil', psutil.__version__)"
+
+  # Aligners: spatialaim finds conda and the envs, and each wrapper starts in its env.
   conda run --no-capture-output -n "$SPATIALAIM_ENV" python - <<'PY'
 from spatialaim.reference_aligners.registry import available_reference_aligners, conda_exe
 print("conda:", conda_exe())
 print("aligners available:", available_reference_aligners())
 PY
+  local RA_DIR
+  RA_DIR="$(ra_dir)"
   for pair in tangram_env:run_tangram.py tacco_env:run_tacco.py dot_env:run_dot.py; do
     env="${pair%%:*}"; script="${pair##*:}"
     if env_exists "$env" && conda run -n "$env" python "$RA_DIR/$script" --help >/dev/null 2>&1; then
@@ -107,6 +104,8 @@ PY
     fi
   done
   if dotr_loads; then echo "OK   dot_env loads the DOTr R package"; else echo "FAIL dot_env: library(DOTr)"; fi
+
+  # Datasets: every pair passes spatialaim's own validation.
   log "Datasets ($EXP1_DATA)"
   conda run --no-capture-output -n "$SPATIALAIM_ENV" spatialaim validate --pairs_csv "$EXP1_DATA/pairs.csv" | tail -n 5
 }

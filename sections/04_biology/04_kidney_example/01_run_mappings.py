@@ -12,10 +12,13 @@ results of Experiment 1 stay on the cluster, only its summary is pulled:
     spatialaim   the start exp1.best_start picks (Leiden or an annotation), at
                  its K = best.overall
 
-Each is one ``spatialaim run`` with --k_min = --k_max = that K, so no sweep is
-repeated. The two run roots go to
+Each is one ``spatialaim run`` with --k_min = --k_max = that K and only that
+side's start (an annotation start with --no_leiden_start), so no sweep is
+repeated. The two pair outputs go to
 
     Data/02_Results/biology_example/<pair_dir>/<mapper>_<tree>/{annotation,spatialaim}/
+
+each holding the run root ``<start>/<mapper>/`` (``leiden`` or ``annotation_<key>``).
 
 next to a ``selection.json`` recording what was chosen and why. Afterwards the
 metrics of both runs are compared with the summary's; they should agree up to the
@@ -35,18 +38,18 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from spatialaim.io import start_folder_name
 
 from spatialaim_experiments import exp1, paths
 from spatialaim_experiments.style import MAPPERS
 
 logger = logging.getLogger(__name__)
 
-# Experiment 1 over-clustered every reference at this Leiden resolution (its
-# start_tag "leiden_res3.0").
+# Experiment 1 over-clustered every reference at this Leiden resolution.
 LEIDEN_RESOLUTION = 3.0
 
 # The metrics compared with the summary after the runs.
-METRICS = ["nhood_mean_self_zscore", "local_purity_zscore",
+METRICS = ["spatial_assort_celltype", "spatial_assort_global",
            "modularity_st_expression", "modularity_shared"]
 
 OUT = paths.RESULTS / "biology_example"
@@ -111,18 +114,26 @@ def conda_env() -> dict:
     return env
 
 
-def run_root(selection: dict, side: str) -> Path:
-    """Where one side's ``spatialaim run`` writes; its mapper folder is the run root."""
+def pair_output(selection: dict, side: str) -> Path:
+    """Where one side's ``spatialaim run`` writes (its ``--output_dir``)."""
     return (OUT / selection["pair_dir"] / f"{selection['mapper']}_{selection['tree']}"
             / side)
+
+
+def run_root(selection: dict, side: str) -> Path:
+    """One side's run root, ``<pair output>/<start>/<mapper>``; the start folder
+    above it holds ``start_clustering.h5ad``."""
+    key = selection[side]["ann_key"]
+    start = "leiden" if key is None else start_folder_name(key)
+    return pair_output(selection, side) / start / selection["mapper"]
 
 
 def run(selection: dict, side: str, force: bool) -> Path:
     """One ``spatialaim run`` at the single K this side needs; skipped when that
     K's mapping exists already (unless ``force``)."""
     spec = selection[side]
-    out = run_root(selection, side)
-    k_dir = out / selection["mapper"] / f"k_{spec['k']:03d}"
+    out = pair_output(selection, side)
+    k_dir = run_root(selection, side) / f"k_{spec['k']:03d}"
     if k_dir.exists() and not force:
         logger.info("%-10s exists, skipped: %s", side, k_dir)
         return out
@@ -136,7 +147,7 @@ def run(selection: dict, side: str, force: bool) -> Path:
            "--leiden_resolution", str(LEIDEN_RESOLUTION),
            "--k_min", str(spec["k"]), "--k_max", str(spec["k"])]
     if spec["ann_key"] is not None:
-        cmd += ["--start_from_annotation", spec["ann_key"]]
+        cmd += ["--annotation", spec["ann_key"], "--no_leiden_start"]
     logger.info("%-10s running at K = %d ...", side, spec["k"])
     subprocess.run(cmd, check=True, env=conda_env())
     return out
@@ -145,7 +156,7 @@ def run(selection: dict, side: str, force: bool) -> Path:
 def compare(selection: dict, side: str) -> None:
     """Log this side's metrics next to Experiment 1's."""
     spec = selection[side]
-    table = pd.read_csv(run_root(selection, side) / selection["mapper"] / "k_comparison.csv")
+    table = pd.read_csv(run_root(selection, side) / "k_comparison.csv")
     row = table[table["k"] == spec["k"]].iloc[0]
     for metric in METRICS:
         logger.info("%-10s %-26s here %10.3f   Experiment 1 %10.3f",
@@ -164,7 +175,7 @@ def main() -> None:
     args = ap.parse_args()
 
     selection = select(args.pair, args.mapper, args.tree, args.ann_key)
-    folder = run_root(selection, "annotation").parent
+    folder = pair_output(selection, "annotation").parent
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "selection.json").write_text(json.dumps(selection, indent=2), encoding="utf-8")
     logger.info("pair %d (%s): annotation %s at K = %d, SpatialAIM %s start at K = %d",

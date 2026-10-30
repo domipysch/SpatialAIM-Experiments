@@ -10,7 +10,7 @@ from spatialaim_experiments.style import MAPPERS
 logger = logging.getLogger(__name__)
 
 
-RUN_SPLIT = "invisible_split"  # run folder under Data/02_Results/robustness
+RUN_SPLIT = "invisible_split/annotation_cellType_split"  # start folder under Data/02_Results/robustness
 
 A, B = "Glutamatergic_A", "Glutamatergic_B"
 K_IDENTITY = 4  # the split annotation's own four types
@@ -18,7 +18,7 @@ K_IDENTITY = 4  # the split annotation's own four types
 
 def state_of(run_dir, k: int, type_name: str) -> int:
     """The state the annotated type ``type_name`` belongs to at the cut ``k``."""
-    obs = ad.read_h5ad(run_dir / "start_clustering.h5ad").obs
+    obs = ad.read_h5ad(run_dir.parent / "start_clustering.h5ad").obs  # shared by the start's mappers
     start = int(obs.loc[obs["start_cluster_name"].astype(str) == type_name, "start_cluster"].iloc[0])
     cut = pd.read_csv(run_dir / f"k_{k:03d}" / "start_cluster_to_state.csv")
     return int(cut.loc[cut["start_cluster"] == start, "state"].iloc[0])

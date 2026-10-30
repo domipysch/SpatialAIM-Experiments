@@ -1,5 +1,5 @@
-"""Progress of one Experiment 1 run root: done / failed / missing per stage and
-mapper, cache misses, and for everything unfinished the ``--array=`` list to
+"""Progress of one Experiment 1 run root: done / failed / missing per stage
+(scaffold, sweep) and mapper, cache misses, and for everything unfinished the ``--array=`` list to
 resubmit (a resubmitted job skips its runs that already have DONE).
 
     python 03_status.py              # table + resubmit lists
@@ -54,7 +54,7 @@ def main() -> None:
     df = pd.DataFrame(grid.runs(root))
     df["unit"] = df["unit"].astype(int)
     df["state"] = [state(root, r) for r in df["run_id"]]
-    df["mapper"] = df["mapper"].where(df["stage"] == "B", "(scaffold)")
+    df["mapper"] = df["mapper"].where(df["stage"] == "sweep", "(scaffold)")
     table = (df.groupby(["stage", "mapper", "state"]).size()
              .unstack(fill_value=0).reindex(columns=["done", "failed", "missing"], fill_value=0))
     table["total"] = table.sum(axis=1)
@@ -62,9 +62,9 @@ def main() -> None:
     print(table.to_string())
     print(f"\nall: {int((df['state'] == 'done').sum())} / {len(df)} done")
 
-    done_b = df[(df["stage"] == "B") & (df["state"] == "done")]
-    misses = [r for r in done_b["run_id"] if resources(root, r).get("cache_hit") is False]
-    print(f"cache misses among done stage-B runs: {len(misses)}")
+    done_sweeps = df[(df["stage"] == "sweep") & (df["state"] == "done")]
+    misses = [r for r in done_sweeps["run_id"] if resources(root, r).get("cache_hit") is False]
+    print(f"cache misses among done sweeps: {len(misses)}")
     for r in misses[:20]:
         print(f"  {r}")
 
@@ -73,17 +73,18 @@ def main() -> None:
         name = grid.root_arg(root)
         print("\nunfinished units, to resubmit (from the experiment1 dir):")
         todo = todo.assign(time=[
-            "" if r["stage"] == "A" else grid.job_time(r["mapper"], r)
+            "" if r["stage"] == "scaffold" else grid.job_time(r["mapper"], r)
             for r in todo.to_dict("records")])
         for (stage, mapper, time), part in todo.groupby(["stage", "mapper", "time"]):
             spec = grid.array_spec(part["unit"].unique())
-            if stage == "A":
-                print(f"  sbatch.tinyfat --array={spec} 01_scaffolds.tinyfat.sbatch {name}")
+            if stage == "scaffold":
+                print(f"  sbatch.tinyfat --array={spec} 01_scaffold.tinyfat.sbatch {name}")
             else:
-                print(f"  sbatch.tinyfat -J exp1_B_{mapper} --time={time} --array={spec} "
-                      f"02_map.tinyfat.sbatch {name} {mapper}")
+                print(f"  sbatch.tinyfat -J exp1_sweep_{mapper} --time={time} --array={spec} "
+                      f"02_sweep.tinyfat.sbatch {name} {mapper}")
         print("  (a job that ran out of time: resubmit it with a longer --time before the script\n"
-              "   name, e.g. --time=02:00:00 for a scaffold, --time=24:00:00 for dot)")
+              "   name, e.g. --time=02:00:00 for a scaffold, --time=24:00:00 for dot; a\n"
+              "   sweep that does not fit 24 h is split by K, see README step 5b)")
 
     failed = df[df["state"] == "failed"]
     if args.failed and len(failed):

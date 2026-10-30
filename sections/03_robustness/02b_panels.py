@@ -71,17 +71,18 @@ mpl.rcParams.update({
 # the runs (01_run_robustness_experiments.ps1) and how to read them
 # --------------------------------------------------------------------------
 
-# run folders under Data/02_Results/robustness; each holds one run root per mapper
-RUN_ORIGINAL = "original_annotation"           # cellType, 3 types
-RUN_SPLIT = "invisible_split"                  # cellType_split, 4 types
-RUN_OVERCLUSTER = "original_leiden_overcluster"
+# start folders under Data/02_Results/robustness; each holds one run root per mapper
+RUN_ORIGINAL = "original/annotation_cellType"                # cellType, 3 types
+RUN_SPLIT = "invisible_split/annotation_cellType_split"      # cellType_split, 4 types
+RUN_OVERCLUSTER = "original/leiden"
 ST_PATH = paths.DATASETS / "ST" / "01_mouse-ssp.h5ad"
 
 MAPPER: str | None = None  # set by main() from --mapper
 
 
 def run_dir(run: str) -> Path:
-    """One mapper's run root; its parent holds the shared reference scaffold."""
+    """One mapper's run root; its parent holds the start clustering (shared by
+    the start's mappers), two levels up is the shared reference scaffold."""
     return paths.ROBUSTNESS / run / MAPPER
 
 
@@ -93,7 +94,7 @@ def analysis_dir() -> Path:
 def spot_types(run: str, k: int) -> np.ndarray:
     """Hard spot assignment as annotated cell type names."""
     d = run_dir(run)
-    sc = ad.read_h5ad(d / "start_clustering.h5ad")
+    sc = ad.read_h5ad(d.parent / "start_clustering.h5ad")
     cut = pd.read_csv(d / f"k_{k:03d}" / "start_cluster_to_state.csv")
     to_state = dict(zip(cut["start_cluster"], cut["state"]))
     names: dict[int, set] = {}
@@ -113,7 +114,7 @@ def spot_states(run: str, k: int) -> np.ndarray:
 def cell_states(run: str, k: int) -> np.ndarray:
     """Reference cells labelled by the state they belong to at this cut."""
     d = run_dir(run)
-    sc = ad.read_h5ad(d / "start_clustering.h5ad")
+    sc = ad.read_h5ad(d.parent / "start_clustering.h5ad")
     cut = pd.read_csv(d / f"k_{k:03d}" / "start_cluster_to_state.csv")
     to_state = dict(zip(cut["start_cluster"], cut["state"]))
     return np.array([to_state[int(c)] for c in sc.obs["start_cluster"]])
@@ -463,7 +464,7 @@ def main() -> None:
     xy = np.asarray(st.obsm["spatial"], dtype=float)
 
     # ---------------- the reference and its two annotations ----------------
-    scaffold = ad.read_h5ad(run_dir(RUN_SPLIT).parent / "reference_scaffold.h5ad", backed="r")
+    scaffold = ad.read_h5ad(run_dir(RUN_SPLIT).parent.parent / "reference_scaffold.h5ad", backed="r")
     emb = np.asarray(scaffold.obsm["X_umap_shared_genes"])
     umap_panel("umap_celltype", emb, scaffold.obs["cellType"].astype(str).to_numpy())
     umap_panel("umap_split", emb, scaffold.obs["cellType_split"].astype(str).to_numpy())
@@ -484,7 +485,7 @@ def main() -> None:
                            .read_text(encoding="utf-8"))
     k_best = int(selection["best"]["overall"]["k"])
 
-    ref = ad.read_h5ad(run_dir(RUN_OVERCLUSTER).parent / "reference_scaffold.h5ad", backed="r")
+    ref = ad.read_h5ad(run_dir(RUN_OVERCLUSTER).parent.parent / "reference_scaffold.h5ad", backed="r")
     fine = ref.obs["cellTypeMinor"].astype(str).to_numpy()
     fractions = composition(cell_states(RUN_OVERCLUSTER, k_best), fine)
     # Only the excitatory states are shown: the other families are grey on the

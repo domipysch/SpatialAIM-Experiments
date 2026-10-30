@@ -1,5 +1,5 @@
 """
-Step 2 of figure 4's kidney example: what neighbourhood enrichment looks like, as
+Step 2 of figure 4's kidney example: what spatial assortativity looks like, as
 PNGs for the drawing.
 
 Reads the two mappings 01_run_mappings.py computed (annotation, SpatialAIM) and
@@ -9,12 +9,12 @@ draws, per side:
                   the zoom window is boxed
     zoom_<side>   the window, large, with the neighbourhood graph drawn: an edge
                   joining two spots of the same state in that state's colour, an
-                  edge between two states pale grey. Neighbourhood enrichment counts
-                  exactly these same-state edges against a label shuffle.
+                  edge between two states pale grey. Assortativity is exactly the
+                  share of these same-state edges, corrected for chance.
 
 The graph is SpatialAIM's own (squidpy spatial kNN, K_SPATIAL neighbours), and the
-window's mean self z-score and local purity are computed with SpatialAIM's own
-functions on the graph rebuilt from the window's spots (shuffled within the window).
+window's assortativity (global and mean per state) is computed with SpatialAIM's
+own function on the graph rebuilt from the window's spots.
 
 State colours follow the annotated types: every type its own colour; a SpatialAIM state takes the colour of the type dominating its reference
 cells, a second state dominated by the same type a turned hue.
@@ -25,7 +25,7 @@ The images go to the vault, next to the nearest-centroid drawing of figure 4:
 
 ``panels.json`` also carries what the drawing writes around them: each side's K and
 its metrics on the whole section and on the window. No state is named: the
-figure is about neighbourhood enrichment, not about which cell types these are.
+figure is about spatial assortativity, not about which cell types these are.
 
     python sections/04_biology/04_kidney_example/02_panels.py [--pair 4]
 """
@@ -44,6 +44,9 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import to_hex, to_rgb
+
+from spatialaim.io import start_folder_name
+from spatialaim.metrics.topology import assortativity
 
 from spatialaim_experiments import paths
 from spatialaim_experiments.style import MAPPERS, PanelWriter, use_paper_rcparams
@@ -67,10 +70,8 @@ SPOT_SIZE = 0.02
 ZOOM_WINDOWS = {4: (41000.0, 50000.0, 38000.0, 45875.0)}
 ZOOM_WIDTH = 1.95     # inches; ~4k spots
 # The spatial graph: SpatialAIM's analysis builds a kNN graph with this many
-# neighbours (spatialaim.analysis.spatial_organization.K_SPATIAL) and shuffles the
-# labels this often for the null.
+# neighbours (spatialaim.analysis.topology.K_SPATIAL).
 K_SPATIAL = 6
-N_PERM = 100
 # Zoom edges: same-state edges in the state's colour, the others pale.
 EDGE_SAME = 0.4         # line width, pt
 EDGE_CROSS = 0.3
@@ -133,6 +134,12 @@ NAME_SHARE = 0.15
 # reading one mapping
 # ---------------------------------------------------------------------------
 
+def run_root(folder: Path, side: str, ann_key: str | None, mapper: str) -> Path:
+    """One side's run root as 01_run_mappings.py wrote it:
+    ``<side>/<start>/<mapper>``, start ``leiden`` or ``annotation_<key>``."""
+    return folder / side / ("leiden" if ann_key is None else start_folder_name(ann_key)) / mapper
+
+
 def load_mapping(root: Path, k: int) -> tuple[pd.Series, np.ndarray]:
     """One run's result at K.
 
@@ -140,7 +147,8 @@ def load_mapping(root: Path, k: int) -> tuple[pd.Series, np.ndarray]:
         cell_state   per reference cell (index = cell id) the state it belongs to
         spot_state   per ST spot the state it is mapped to (argmax of P)
     """
-    start = ad.read_h5ad(root / "start_clustering.h5ad", backed="r").obs["start_cluster"]
+    # the start clustering is shared by the start's mappers, one folder up
+    start = ad.read_h5ad(root.parent / "start_clustering.h5ad", backed="r").obs["start_cluster"]
     cut = pd.read_csv(root / f"k_{k:03d}" / "start_cluster_to_state.csv")
     cell_state = start.astype(int).map(dict(zip(cut["start_cluster"], cut["state"])))
     P = ad.read_h5ad(root / f"k_{k:03d}" / "spot_to_state_mapping_soft.h5ad")
@@ -150,7 +158,7 @@ def load_mapping(root: Path, k: int) -> tuple[pd.Series, np.ndarray]:
 def metrics(root: Path, k: int) -> dict:
     """The figure's four metrics for this mapping, from its k_comparison.csv."""
     row = pd.read_csv(root / "k_comparison.csv").set_index("k").loc[k]
-    return {m: float(row[m]) for m in ["nhood_mean_self_zscore", "local_purity_zscore",
+    return {m: float(row[m]) for m in ["spatial_assort_celltype", "spatial_assort_global",
                                        "modularity_st_expression", "modularity_shared"]}
 
 
@@ -166,14 +174,11 @@ def knn_graph(xy: np.ndarray):
 
 
 def window_metrics(labels: np.ndarray, graph) -> dict:
-    """Mean self z-score and local purity on the window, with SpatialAIM's own
-    functions (graph built from the window's spots, labels shuffled within it)."""
-    from spatialaim.metrics.topology import local_spatial_purity, self_nhood_enrichment
-
-    z = self_nhood_enrichment(labels, graph, N_PERM, np.random.default_rng(0))
-    present = np.unique(labels)
-    return {"nhood_mean_self_zscore": float(np.nanmean(z[present])),
-            "local_purity": float(local_spatial_purity(labels, graph))}
+    """Global and mean per-state assortativity on the window, with SpatialAIM's
+    own function (graph built from the window's spots), named as in
+    k_comparison.csv."""
+    a = assortativity(labels, graph)
+    return {"spatial_assort_global": a.value, "spatial_assort_celltype": a.mean_state}
 
 
 # ---------------------------------------------------------------------------
@@ -317,13 +322,13 @@ def main() -> None:
     colours = type_colours(cell_type)
 
     # the annotation: state = annotated type (identity cut at K = T)
-    ann_root = folder / "annotation" / args.mapper
+    ann_root = run_root(folder, "annotation", ann["ann_key"], args.mapper)
     ann_cells, ann_spots = load_mapping(ann_root, ann["k"])
     ann_states = describe_states(ann_cells, cell_type, colours)
     ann_colour = {s: colours[t] for s, t in ann_states["dominant"].items()}
 
     # SpatialAIM
-    aim_root = folder / "spatialaim" / args.mapper
+    aim_root = run_root(folder, "spatialaim", aim["ann_key"], args.mapper)
     aim_cells, aim_spots = load_mapping(aim_root, aim["k"])
     aim_states = describe_states(aim_cells, cell_type, colours)
     logger.info("SpatialAIM states:\n%s", aim_states.to_string())
@@ -346,8 +351,8 @@ def main() -> None:
             zoom_panel(panels, f"zoom_{side}", xy[inside], labels[inside], colour_of,
                        window_graph, window)
             manifest[side]["window_metrics"] = window_metrics(labels[inside], window_graph)
-        logger.info("%-10s section z %.1f | window %s", side,
-                    manifest[side]["metrics"]["nhood_mean_self_zscore"],
+        logger.info("%-10s section assortativity %.3f | window %s", side,
+                    manifest[side]["metrics"]["spatial_assort_global"],
                     manifest[side].get("window_metrics"))
     panels.write_manifest(manifest)
 

@@ -50,7 +50,7 @@ from spatialaim_experiments.style import (
 )
 
 FIGURE, SUPPLEMENT = "2", "S6"
-LEIDEN_TAG = "leiden_res3.0"
+LEIDEN_TAG = "leiden"
 METRIC_SPOT, METRIC_GENE = "cossim_hard_raw_spot", "cossim_hard_raw_gene"
 
 use_paper_rcparams()
@@ -263,10 +263,10 @@ def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFr
     """One cost value per (reference, mapper), for the boxes of panels d and e.
 
     Input
-        res     resources_stage_b.csv (exp1.resources("b")): one row per mapping run
-        column  "wall_s" (seconds for the whole K sweep) or "peak_rss_tree_mb"
-                (peak memory of the whole process tree, the aligner's own
-                process included -- the same measure for every mapper)
+        res     resources_sweep.csv (exp1.resources("sweep")): one row per sweep
+        column  "wall_s" (seconds for the whole K sweep, scaffold read from cache)
+                or "peak_rss_tree_mb" (peak memory of the whole process tree, the
+                aligner's own process included -- the same measure for every mapper)
         unit    factor to the plotted unit, e.g. 1/60 for minutes
 
     Output
@@ -278,37 +278,33 @@ def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFr
                 .rename("value").reset_index().rename(columns={"sc": "reference"}))
 
 
-def whole_runs_per_reference(res: pd.DataFrame, single: pd.DataFrame) -> pd.DataFrame:
+def whole_runs_per_reference(res: pd.DataFrame) -> pd.DataFrame:
     """The two sides of panel e, one value per (reference, mapper, side), in minutes.
 
     Input
-        res     resources_stage_b.csv (exp1.resources("b"))
-        single  resources_single_k.csv (exp1.resources_single_k()): one annotation
-                mapped at K = T only, per annotation unit and mapper
+        res     resources_sweep.csv (exp1.resources("sweep")), with the derived costs
+                of experiment1/04_summarize.py (sweep_costs)
 
     Output
         columns reference, mapper, side, value:
-          side "spatialaim"   a whole SpatialAIM run: Leiden scaffold build + the
-                              sweep over every K (wall_with_scaffold_s), median
-                              over the reference's pairs and both trees
-          side "annotation"   mapping one annotation: its scaffold build + K = T,
-                              median over the reference's pairs and annotation keys
+          side "spatialaim"   a whole SpatialAIM run: the Leiden sweep with the
+                              pair's scaffold build in place of its cache read
+                              (full_pipeline_s), median over the reference's
+                              pairs and both trees
+          side "annotation"   mapping one annotation: the annotation sweep without
+                              the K below T (one_annotation_s), median over the
+                              reference's pairs, annotation keys and both trees
 
-    Both sides count loading, preprocessing and each K's analysis; what differs
-    is the over-clustering and the K levels beyond T.
-
-    A single-K run that missed the scaffold cache (cache_hit False: 06_mouse-retina,
-    whose files on the cluster are newer than its scaffolds) rebuilt the scaffold
-    inside its own timer, so its wall_s already holds the build and nothing is added.
+    Both sides count process start, loading, preprocessing and each K's
+    analysis; what differs is the over-clustering and the K levels beyond T.
+    Every number is measured in the same runs.
     """
-    leiden = res[(res["start_tag"] == LEIDEN_TAG) & (res["status"] == "ok")]
-    single = single[single["status"] == "ok"]
-    built_inside = single["cache_hit"].astype(str).str.lower() != "true"
-    single = single.assign(wall_with_scaffold_s=single["wall_s"].where(
-        built_inside, single["wall_s"] + single["scaffold_build_s"]))
-    sides = [frame.groupby(["sc", "mapper"])["wall_with_scaffold_s"].median().div(60)
+    ok = res[res["status"] == "ok"]
+    sides = [frame.groupby(["sc", "mapper"])[column].median().div(60)
                   .rename("value").reset_index().assign(side=side)
-             for side, frame in (("spatialaim", leiden), ("annotation", single))]
+             for side, frame, column in (
+                 ("spatialaim", ok[ok["start_tag"] == LEIDEN_TAG], "full_pipeline_s"),
+                 ("annotation", ok[ok["ann_key"].notna()], "one_annotation_s"))]
     return pd.concat(sides, ignore_index=True).rename(columns={"sc": "reference"})
 
 
@@ -386,9 +382,9 @@ def main() -> None:
                "Δ number of cell types\n(SpatialAIM − annotation)")
     panel_mappers(df)
 
-    runs = exp1.resources("b")
+    runs = exp1.resources("sweep")
     sweep = panel_cost(cost_per_reference(runs, "wall_s", 1 / 60), "Runtime (min)", log=True)
-    whole = panel_whole_runs(whole_runs_per_reference(runs, exp1.resources_single_k()))
+    whole = panel_whole_runs(whole_runs_per_reference(runs))
     # the shared axis: both span what either needs, and only (d) is labelled
     lows, highs = zip(*(ax.get_ylim() for _, ax in (sweep, whole)))
     for (fig, ax), name in ((sweep, "runtime"), (whole, "runtime_vs_annotation")):

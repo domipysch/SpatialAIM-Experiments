@@ -3,7 +3,7 @@
 
 ``summary/best_per_run.csv`` is built on the cluster by ``experiment1/04_summarize.py`` and
 pulled to ``Data/02_Results/experiment1/summary/`` (``paths.EXP1_SUMMARY``). Each
-row is one stage-B run at the one K the figures compare:
+row is one sweep at the one K the figures compare:
 
     baseline     annotation start, K = T (the identity cut: every spot maps
                  straight onto the author's annotation)
@@ -22,7 +22,7 @@ from . import paths
 
 
 def load() -> pd.DataFrame:
-    """``summary/best_per_run.csv``, one row per stage-B run (see module docstring)."""
+    """``summary/best_per_run.csv``, one row per sweep and role (see module docstring)."""
     path = paths.EXP1_SUMMARY / "best_per_run.csv"
     if not path.exists():
         raise FileNotFoundError(
@@ -31,16 +31,11 @@ def load() -> pd.DataFrame:
 
 
 def resources(stage: str) -> pd.DataFrame:
-    """``summary/resources_stage_<stage>.csv`` (stage "a" = scaffold builds, "b" =
-    mapping runs): time and memory per run, from its resources.json."""
-    return pd.read_csv(paths.EXP1_SUMMARY / f"resources_stage_{stage}.csv",
-                       keep_default_na=False, na_values=[""])
-
-
-def resources_single_k() -> pd.DataFrame:
-    """``summary/resources_single_k.csv``: time per run of mapping one annotation at
-    K = T only (experiment1/06_single_k.py), one row per annotation unit and mapper."""
-    return pd.read_csv(paths.EXP1_SUMMARY / "resources_single_k.csv",
+    """``summary/resources_<stage>.csv`` (stage "scaffold" = the scaffold build per
+    pair, "sweep" = one row per sweep, "per_k" = one row per sweep and K): time
+    and memory, from each run's resources.json and phases.csv
+    (experiment1/04_summarize.py)."""
+    return pd.read_csv(paths.EXP1_SUMMARY / f"resources_{stage}.csv",
                        keep_default_na=False, na_values=[""])
 
 

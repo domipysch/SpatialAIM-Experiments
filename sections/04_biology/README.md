@@ -4,12 +4,13 @@ All data comes from `experiment1/`, reduced to one tidy table by `spatialaim_exp
 
 | Row | Criterion | Measures |
 |---|---|---|
-| a | spatial organisation | neighbourhood enrichment (self-diagonal z), local spatial purity z |
+| a | spatial organisation | spatial assortativity per cell type (mean), global spatial assortativity |
 | b | transcriptional coherence | modularity over the slice's spots, modularity over the reference's cells |
 
-Chance is 0 for all four by construction: the spatial pair are z-scores against a
-spot-label shuffle, and modularity is the excess over a degree-preserving random
-partition. 
+Chance is 0 for all four by construction: the spatial pair are Newman's
+assortativity on the spatial kNN graph, chance-corrected like Cohen's kappa (1 = no
+edge leaves its state), and modularity is the excess over a degree-preserving random
+partition. All four are bounded, so every axis is linear.
 
 SpatialAIM is, per pair, tree and mapper, the following configuration:
 - take from the Leiden start the mapping at K = `best.overall`

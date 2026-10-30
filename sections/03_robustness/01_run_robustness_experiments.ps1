@@ -1,13 +1,15 @@
 # The three Results 2.3 sweeps on pair 1 (01_mouse-ssp x 01_mouse-ssp), all average
-# linkage, for one spot-to-state mapper or all five (-All):
+# linkage, for one spot-to-state mapper or all five (-All). Two spatialaim calls per
+# mapper, each sweeping the Leiden start plus one annotation start:
 #
-#   original_annotation          obs["cellType"] of 01_mouse-ssp, 3 types -> K = 3..1
-#   invisible_split              obs["cellType_split"] of split.h5ad, 4 types -> K = 4..1
-#   original_leiden_overcluster  the default Leiden over-clustering (~44 start clusters)
+#   original/annotation_cellType/<mapper>              obs["cellType"], 3 types -> K = 3..1
+#   original/leiden/<mapper>                           the default Leiden over-clustering (~44 start clusters)
+#   invisible_split/annotation_cellType_split/<mapper> obs["cellType_split"] of split.h5ad, 4 types -> K = 4..1
+#   invisible_split/leiden/<mapper>                    by-product of the CLI (the Leiden start always runs); unused
 #
-# into Data/02_Results/robustness/<run>/<mapper>/, one log per run in _logs/. A run
-# whose k_selection.json exists is skipped, so an interrupted call just continues;
-# delete a run's folder to redo it.
+# under Data/02_Results/robustness/, one log per call in _logs/. A call whose two
+# k_selection.json exist is skipped, so an interrupted call just continues; delete a
+# start's mapper folder to redo it.
 #
 # Usage:  powershell -File 01_run_robustness_experiments.ps1 -All
 #         powershell -File 01_run_robustness_experiments.ps1 -Mapper wann
@@ -36,21 +38,21 @@ New-Item -ItemType Directory -Force -Path "$ROOT\_logs" | Out-Null
 if (-not (Test-Path $SC_SPLIT)) { Write-Host "missing $SC_SPLIT - run 00_perturb.py first"; exit 1 }
 
 $runs = @(
-  @{ name = "original_annotation";         sc = $SC;       ann = "cellType" },
-  @{ name = "invisible_split";             sc = $SC_SPLIT; ann = "cellType_split" },
-  @{ name = "original_leiden_overcluster"; sc = $SC;       ann = $null }
+  @{ name = "original";        sc = $SC;       ann = "cellType" },
+  @{ name = "invisible_split"; sc = $SC_SPLIT; ann = "cellType_split" }
 )
 $mappers = if ($All) { @("nearest_centroid", "wann", "tacco", "dot", "tangram") } else { @($Mapper) }
 
 foreach ($m in $mappers) {
   foreach ($r in $runs) {
     $out = "$ROOT\$($r.name)"
-    if (Test-Path "$out\$m\k_selection.json") { Write-Host "skip   $($r.name) [$m]"; continue }
-    $start = if ($r.ann) { @("--start_from_annotation", $r.ann) } else { @() }
+    $done = (Test-Path "$out\leiden\$m\k_selection.json") -and
+            (Test-Path "$out\annotation_$($r.ann)\$m\k_selection.json")
+    if ($done) { Write-Host "skip   $($r.name) [$m]"; continue }
     Write-Host "run    $($r.name) [$m] ..."
     $t0 = Get-Date
     & "$E\python.exe" -m spatialaim run --scdata $r.sc --stdata $ST --output_dir $out `
-        --mapping $m --linkage_method average @start *> "$ROOT\_logs\$($r.name)_$m.log"
+        --mapping $m --linkage_method average --annotation $r.ann *> "$ROOT\_logs\$($r.name)_$m.log"
     Write-Host ("  -> exit {0} after {1:N0} s" -f $LASTEXITCODE, ((Get-Date) - $t0).TotalSeconds)
   }
 }

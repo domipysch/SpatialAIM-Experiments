@@ -14,8 +14,9 @@ An optional top row, then two rows of three, one row per criterion:
                                         (the top row, next to the kidney example of
                                         04_kidney_example/; only drawn for nearest centroid)
     e  sketch_spatial                   what spatial organisation means, on a toy tissue patch
-    f  plaus_nhood_mean_self_zscore     SpatialAIM against the annotation, neighbourhood enrichment
-    g  plaus_local_purity_zscore        the same, local spatial purity
+    f  plaus_spatial_assort_celltype    SpatialAIM against the annotation, spatial assortativity
+                                        per cell type (mean)
+    g  plaus_spatial_assort_global      the same, global spatial assortativity
     h  sketch_coherence                 what transcriptional coherence means, on a toy expression graph
     i  plaus_modularity_st_expression   modularity over the slice's spots
     j  plaus_modularity_shared          modularity over the reference's cells
@@ -53,16 +54,14 @@ FIGURE = "4"
 TREE = "average"
 ALL = "all_mappers"      # the folder of the version aggregated over all mappers
 
-# The four metrics, each with the measure its axis titles name. Only the two
-# spatial z-scores span decades and get logarithmic axes; the modularities live
-# inside one decade.
+# The four metrics, each with the measure its axis titles name. All four are
+# chance-corrected (0 = random labels) and bounded, so every axis is linear.
 METRICS = {
-    "nhood_mean_self_zscore": "Mean z-score",
-    "local_purity_zscore": "Z-score",
+    "spatial_assort_celltype": "Mean assortativity",
+    "spatial_assort_global": "Assortativity",
     "modularity_st_expression": "Modularity",
     "modularity_shared": "Modularity",
 }
-LOG_METRICS = {"nhood_mean_self_zscore", "local_purity_zscore"}
 
 use_paper_rcparams()
 # set by main() to the panel folder, figure_4/<mapper or all_mappers>/panels/
@@ -103,8 +102,8 @@ WINS_LEFT, WINS_PLOT_W, WINS_RIGHT = 1.12, 0.72, 0.12
 WINS_FOOT, WINS_TOP = 0.36, 0.08
 WINS_NUMBER_SIZE = 13  # pt, the "9/10" per metric
 WINS_LABELS = {
-    "nhood_mean_self_zscore": "Neighbourhood\nenrichment",
-    "local_purity_zscore": "Local spatial\npurity",
+    "spatial_assort_celltype": "Assortativity\nper cell type",
+    "spatial_assort_global": "Assortativity\nglobal",
     "modularity_st_expression": "Modularity\nin spatial data",
     "modularity_shared": "Modularity\nin reference",
 }
@@ -119,7 +118,7 @@ def comparisons(df: pd.DataFrame, metric: str, mapper: str | None) -> pd.DataFra
 
     Input
         df      exp1.best_start(exp1.load()): one row per run
-        metric  e.g. "local_purity_zscore"
+        metric  e.g. "spatial_assort_global"
         mapper  e.g. "wann"; None keeps all five
 
     Output
@@ -166,33 +165,17 @@ def linear_axis(lo: float, hi: float) -> tuple[tuple[float, float], list[float]]
     return (ticks[0] - pad, ticks[-1] + pad), ticks
 
 
-def log_axis(lo: float, hi: float) -> tuple[tuple[float, float], list[float]]:
-    """Limits snapped outward to half-decades labelled 1, 3, 10, 30, ..., a tick
-    on every one."""
-    ladder = [m * 10.0 ** e
-              for e in range(int(np.floor(np.log10(lo))) - 1, int(np.ceil(np.log10(hi))) + 1)
-              for m in (1.0, 3.0)]
-    start = max(v for v in ladder if v <= lo)
-    end = min(v for v in ladder if v >= hi)
-    pad = (end / start) ** AXIS_PAD
-    return (start / pad, end * pad), [v for v in ladder if start <= v <= end]
-
-
 def panel_scatter(cell: pd.DataFrame, metric: str) -> None:
     """x = annotation, y = SpatialAIM, same limits and ticks on both, colour = dk."""
     fig = plt.figure(figsize=SCATTER_SIZE)
     ax = fig.add_axes(SCATTER_AXES)
     lo = float(min(cell["spatialaim"].min(), cell["ann"].min()))
     hi = float(max(cell["spatialaim"].max(), cell["ann"].max()))
-    log = metric in LOG_METRICS
-    span, ticks = (log_axis if log else linear_axis)(lo, hi)
+    span, ticks = linear_axis(lo, hi)
     ax.plot(span, span, color=PALE, lw=0.9, zorder=1)      # parity
     ax.scatter(cell["ann"], cell["spatialaim"], c=np.clip(cell["dk"], -DK_LIMIT, DK_LIMIT),
                cmap=CMAP_DK, vmin=-DK_LIMIT, vmax=DK_LIMIT, s=34,
                linewidths=0.5, edgecolors=INK, zorder=2)
-    if log:                            # set the scale first: it resets the locators
-        ax.set_xscale("log")
-        ax.set_yscale("log")
     for axis in (ax.xaxis, ax.yaxis):
         axis.set_major_locator(mpl.ticker.FixedLocator(ticks))
         axis.set_major_formatter(mpl.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
@@ -233,7 +216,7 @@ def wins(df: pd.DataFrame, metric: str) -> pd.DataFrame:
 
     Input
         df      exp1.best_start(exp1.load()): one row per run
-        metric  e.g. "local_purity_zscore"
+        metric  e.g. "spatial_assort_global"
 
     Output
         one row per mapper (in MAPPERS order), on the average tree:

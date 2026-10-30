@@ -15,12 +15,12 @@
 # cell its own panel:
 #
 #   a kidney, annotation | b kidney, SpatialAIM | c wins
-#   d sketch | e neighbourhood enrichment | f local spatial purity
+#   d sketch | e assortativity per cell type | f global assortativity
 #   g sketch | h modularity over the slice | i modularity over the reference
 #
 # The top row is the worked example and the overview: one tissue mapped both
 # ways (04_kidney_example/, whose panels.json also supplies each map's
-# neighbourhood enrichment), then on how many references SpatialAIM beats the
+# assortativity on the zoom window), then on how many references SpatialAIM beats the
 # annotation (one count per metric). It is drawn in one version only: by default
 # nearest centroid's
 # (``--top-row`` / ``--no-top-row`` override). Without it the letters start at
@@ -81,9 +81,9 @@ TOP_ROW_DEFAULT = {"nearest_centroid"}   # the versions that get the top row
 HEAD_WINS = "SpatialAIM against\nthe annotation"
 HEAD_MAPS = {"annotation": "Kidney, mapped annotation",
              "spatialaim": "Kidney, mapped SpatialAIM"}
-# Beside each small map: the zoom window's neighbourhood enrichment, smaller than
-# a caption.
-ENRICHMENT_NOTE = "neighborhood\nenrichment\ndiagonal score\nz = {z:.0f}"
+# Beside each small map: the zoom window's global spatial assortativity, smaller
+# than a caption.
+ASSORT_NOTE = "spatial\nassortativity\nr = {r:.2f}"
 FS_KEY = 32
 CAPTION_GAP = 12      # top row: a and b's caption to their small map
 # wins to the colour bar under it; negative because the bar's PNG carries its
@@ -96,10 +96,10 @@ ROWS = [
     {
         "sketch": ("sketch_spatial",
                    "Spatial organisation of\nthe mapped cell types"),
-        "panels": [("plaus_nhood_mean_self_zscore",
-                    "Mean z-score of\nneighbourhood enrichment diagonal"),
-                   ("plaus_local_purity_zscore",
-                    "Local spatial purity z-score")],
+        "panels": [("plaus_spatial_assort_celltype",
+                    "Spatial assortativity,\nmean over cell types"),
+                   ("plaus_spatial_assort_global",
+                    "Spatial assortativity,\nglobal")],
     },
     {
         "sketch": ("sketch_coherence",
@@ -129,7 +129,7 @@ def image(name: str, x, y, manifest: dict, folder=None) -> tuple[float, float]:
 def top_row(manifest: dict, kidney: dict, letters, y: float) -> float:
     """a, b: the kidney mapped as annotated and by SpatialAIM -- per side a small
     map of the whole section (locating the boxed window) with the window's
-    neighbourhood enrichment beside it, and the window itself large underneath,
+    assortativity beside it, and the window itself large underneath,
     its neighbourhood graph drawn; c: the win counts, the scatters' colour bar
     under them. The three letters and
     captions share one line, the images the line below the tallest caption, and
@@ -162,9 +162,9 @@ def top_row(manifest: dict, kidney: dict, letters, y: float) -> float:
         w_map, h_map = image(f"map_{side}", x, top, kidney, folder)
         below = top + h_map
         if kidney.get("zoom"):
-            z = kidney[side]["window_metrics"]["nhood_mean_self_zscore"]
+            r = kidney[side]["window_metrics"]["spatial_assort_global"]
             # bottom-aligned with the map, so its last line sits just above the zoom
-            note = ENRICHMENT_NOTE.format(z=z)
+            note = ASSORT_NOTE.format(r=r)
             text(note, x + w_map + NOTE_GAP, below - text_size(note, FS_KEY)[1],
                  size=FS_KEY, colour=GREY)
             _w, h_zoom = image(f"zoom_{side}", x, below + MAP_GAP, kidney, folder)
@@ -181,8 +181,8 @@ def build(manifest: dict, kidney: dict | None) -> None:
     panels = manifest["panels"]
     letters = iter("abcdefghijklmnopqrstuvwxyz")
     w_sketch = panels["sketch_spatial"]["w"]
-    w_scatter = panels["plaus_nhood_mean_self_zscore"]["w"]
-    h_row = panels["plaus_nhood_mean_self_zscore"]["h"]
+    w_scatter = panels["plaus_spatial_assort_global"]["w"]
+    h_row = panels["plaus_spatial_assort_global"]["h"]
 
     # Three cells per row on one baseline; the slack is split into two equal
     # gaps, so the row fills the figure's width exactly.

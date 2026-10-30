@@ -2,13 +2,14 @@
 
 Figure 4 argues with numbers that SpatialAIM's mappings are more plausible than
 mapping the author's annotation. This folder adds the picture: one tissue mapped
-both ways, side by side, so a reader sees what a higher neighbourhood enrichment
+both ways, side by side, so a reader sees what a higher spatial assortativity
 looks like.
 
 The example is pair 4 (`04_mouse-kidney`, one MERFISH section of 126,547 cells)
-with nearest centroid and average linkage. On this mapper and tree, the kidney is the
-reference where SpatialAIM's gain is largest: neighbourhood enrichment rises from 142
-(annotation, 22 TMS classes) to 285 (SpatialAIM). The next largest gain is breast cancer, 151 → 178.
+with nearest centroid and average linkage. It was chosen as the reference where
+SpatialAIM's gain in neighbourhood enrichment was largest, the spatial metric before
+the assortativity. **Re-check that choice, and the numbers below, against the
+Experiment 1 rerun**: the old values (z-scores) no longer apply.
 
 ## What is shown
 
@@ -24,32 +25,31 @@ The kidney reference carries two annotations: TMS's own `cell_ontology_class` (2
 classes) and Liu et al.'s coarse-grained `cell_ontology_relabel` (13). The figure shows
 Liu's 13 types, the annotation of the paper the MERFISH section comes from. This
 departs from the scatters of figure 4, whose kidney baseline is the 22 TMS classes:
-they score higher, by a small margin (`score_overall` 0.420 vs 0.419). The neighbourhood
-enrichment of the shown annotation is therefore 125, not the scatters' 142.
+they scored higher, by a small margin, in the previous Experiment 1 round
+(`score_overall` 0.420 vs 0.419).
 
 The per-spot mappings of Experiment 1 stay on the cluster, so step 1 recomputes the
 two mappings locally, at those two Ks only, and checks their metrics against the
 summary.
 
-The figure is about neighbourhood enrichment, not about which cell types these are,
+The figure is about spatial assortativity, not about which cell types these are,
 so no state is named:
 
 - **Maps** (whole section, small): every spot in the colour of its state. They only
   locate the zoom window, which is boxed.
 - **Zooms** (large): the window with the neighbourhood graph drawn. An edge joining
   two spots of the same state is drawn in that state's colour, an edge between two
-  states pale grey underneath. Neighbourhood enrichment counts exactly the
-  same-state edges against a label shuffle, so more colour and less grey is a
-  higher z-score.
-- **Beside each map**: the mean self z-score on the window (16 vs 46). The
-  whole-section values (125 vs 285) stay in `panels.json`.
+  states pale grey underneath. Assortativity is exactly the share of same-state
+  edges, corrected for what randomly placed labels would give, so more colour and
+  less grey is a higher assortativity.
+- **Beside each map**: the global assortativity r on the window. The whole-section
+  values and the per-cell-type means stay in `panels.json`.
 
 The graph is SpatialAIM's own: squidpy's spatial kNN with 6 neighbours, the graph
-the analysis step builds (`K_SPATIAL`). The window's z-score uses SpatialAIM's own
-function on the graph rebuilt from the window's spots, shuffling within the window.
-On the whole section the same code reproduces Experiment 1 exactly. Z-scores grow
-with the number of spots, so compare the two maps on the same window, not the window
-with the whole section.
+the analysis step builds (`K_SPATIAL`). The window's assortativity uses SpatialAIM's
+own function (`spatialaim.metrics.topology.assortativity`) on the graph rebuilt from
+the window's spots. Unlike the old z-scores it does not grow with the number of
+spots, so the window and the whole section are on one scale.
 
 State colours (edges only): every annotated type has one colour. A SpatialAIM state
 takes the colour of the annotated type that dominates its reference cells; a second

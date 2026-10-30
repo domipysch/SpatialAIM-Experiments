@@ -14,8 +14,8 @@ $env:PATH = "$E;$E\Library\mingw-w64\bin;$E\Library\usr\bin;$E\Library\bin;$E\Sc
 #    -> Data/01_Datasets_Paper/Robustness/{split.h5ad, manifest.json}
 & "$E\python.exe" 00_perturb.py
 
-# 2. the sweeps: 3 runs per mapper (below), all five mappers; skips every run that
-#    already has a k_selection.json, so an interrupted call just continues
+# 2. the sweeps: 3 runs per mapper (below) in 2 spatialaim calls, all five mappers;
+#    skips every call whose k_selection.json files exist, so an interrupted call just continues
 powershell -File 01_run_robustness_experiments.ps1 -All
 
 # 3. the figure, per mapper (analysis -> panels -> drawing -> PDF)
@@ -24,13 +24,14 @@ powershell -File 02_make_figures.ps1 -All
 
 The three runs of step 2, all average linkage:
 
-| run | reference | start clusters | K |
+| run folder | reference | start clusters | K |
 |---|---|---|---|
-| `original_annotation` | `01_mouse-ssp` | annotation `cellType` (3 types); the unperturbed side of the invisible split and the annotation side of the granularity half | 3..1 |
-| `invisible_split` | `Robustness/split.h5ad` | annotation `cellType_split` (4 types) | 4..1 |
-| `original_leiden_overcluster` | `01_mouse-ssp` | Leiden over-clustering | L..1 |
+| `original/annotation_cellType` | `01_mouse-ssp` | annotation `cellType` (3 types); the unperturbed side of the invisible split and the annotation side of the granularity half | 3..1 |
+| `invisible_split/annotation_cellType_split` | `Robustness/split.h5ad` | annotation `cellType_split` (4 types) | 4..1 |
+| `original/leiden` | `01_mouse-ssp` | Leiden over-clustering | L..1 |
 
-Results land in `Data/02_Results/robustness/<run>/<mapper>/`, 
+The CLI always sweeps the Leiden start too, so `invisible_split/leiden/` exists as well; nothing reads it.
+Results land in `Data/02_Results/robustness/<run folder>/<mapper>/` (reference scaffold two levels up), 
 the analysis numbers in `Data/02_Results/robustness/_analysis/<mapper>/`. 
 
 ## The scripts
