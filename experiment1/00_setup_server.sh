@@ -1,7 +1,7 @@
 #!/bin/bash -l
 # Experiment 1: one-time setup of all conda envs on tinyx.nhr.fau.de (run on the frontend).
 #
-#   SPATIALAIM_VERSION=1.5.0 bash 00_setup_server.sh   # create the envs, then run the checks
+#   SPATIALAIM_VERSION=1.4.1 bash 00_setup_server.sh   # create the envs, then run the checks
 #   bash 00_setup_server.sh check                       # run the checks only
 #
 # Existing envs are reused; remove one first (`conda env remove -n <env>`) to rebuild it.

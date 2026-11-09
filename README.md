@@ -7,6 +7,8 @@ experiment1/            the prerequisite sweep: every pair x start mode x tree x
                         mapper, run under Slurm on NHR TinyFat (Tangram on CPU) with time
                         and memory measured per run. Sections 03 and 04 read its
                         pulled summary.
+Demo_Samples/           the online demo's precomputed results (every demo pair x
+                        start x linkage x mapper), same cluster, all files kept
 sections/               one folder per results section of the paper, each holding
                         the runs it needs and the scripts that draw its figure
   01_overview/          Fig. 2.1  what SpatialAIM does            (hand-drawn)

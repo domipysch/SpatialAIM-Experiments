@@ -1,0 +1,231 @@
+run	pair_id	pair_dir	sc	st	start_tag	ann_key	linkage	mapper	segmentation
+0	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		average	nearest_centroid	
+1	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		average	wann	
+2	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		average	tacco	
+3	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		average	tangram	
+4	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		average	dot	
+5	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		ward	nearest_centroid	
+6	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		ward	wann	
+7	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		ward	tacco	
+8	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		ward	tangram	
+9	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	leiden		ward	dot	
+10	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	average	nearest_centroid	
+11	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	average	wann	
+12	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	average	tacco	
+13	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	average	tangram	
+14	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	average	dot	
+15	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	ward	nearest_centroid	
+16	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	ward	wann	
+17	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	ward	tacco	
+18	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	ward	tangram	
+19	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellType	cellType	ward	dot	
+20	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	average	nearest_centroid	
+21	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	average	wann	
+22	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	average	tacco	
+23	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	average	tangram	
+24	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	average	dot	
+25	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	ward	nearest_centroid	
+26	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	ward	wann	
+27	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	ward	tacco	
+28	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	ward	tangram	
+29	1	001_01_mouse-ssp__01_mouse-ssp	01_mouse-ssp	01_mouse-ssp	annotation_cellTypeMinor	cellTypeMinor	ward	dot	
+30	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		average	nearest_centroid	02_colorectal-cancer.tif
+31	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		average	wann	02_colorectal-cancer.tif
+32	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		average	tacco	02_colorectal-cancer.tif
+33	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		average	tangram	02_colorectal-cancer.tif
+34	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		average	dot	02_colorectal-cancer.tif
+35	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		ward	nearest_centroid	02_colorectal-cancer.tif
+36	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		ward	wann	02_colorectal-cancer.tif
+37	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		ward	tacco	02_colorectal-cancer.tif
+38	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		ward	tangram	02_colorectal-cancer.tif
+39	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	leiden		ward	dot	02_colorectal-cancer.tif
+40	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	average	nearest_centroid	02_colorectal-cancer.tif
+41	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	average	wann	02_colorectal-cancer.tif
+42	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	average	tacco	02_colorectal-cancer.tif
+43	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	average	tangram	02_colorectal-cancer.tif
+44	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	average	dot	02_colorectal-cancer.tif
+45	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	ward	nearest_centroid	02_colorectal-cancer.tif
+46	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	ward	wann	02_colorectal-cancer.tif
+47	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	ward	tacco	02_colorectal-cancer.tif
+48	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	ward	tangram	02_colorectal-cancer.tif
+49	2	002_02_colorectal-cancer__02_colorectal-cancer	02_colorectal-cancer	02_colorectal-cancer	annotation_cellType	cellType	ward	dot	02_colorectal-cancer.tif
+50	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		average	nearest_centroid	03_mouse-liver.tif
+51	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		average	wann	03_mouse-liver.tif
+52	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		average	tacco	03_mouse-liver.tif
+53	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		average	tangram	03_mouse-liver.tif
+54	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		average	dot	03_mouse-liver.tif
+55	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		ward	nearest_centroid	03_mouse-liver.tif
+56	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		ward	wann	03_mouse-liver.tif
+57	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		ward	tacco	03_mouse-liver.tif
+58	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		ward	tangram	03_mouse-liver.tif
+59	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	leiden		ward	dot	03_mouse-liver.tif
+60	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	average	nearest_centroid	03_mouse-liver.tif
+61	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	average	wann	03_mouse-liver.tif
+62	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	average	tacco	03_mouse-liver.tif
+63	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	average	tangram	03_mouse-liver.tif
+64	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	average	dot	03_mouse-liver.tif
+65	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	ward	nearest_centroid	03_mouse-liver.tif
+66	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	ward	wann	03_mouse-liver.tif
+67	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	ward	tacco	03_mouse-liver.tif
+68	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	ward	tangram	03_mouse-liver.tif
+69	3	003_03_mouse-liver__03_mouse-liver	03_mouse-liver	03_mouse-liver	annotation_cell_ontology_class	cell_ontology_class	ward	dot	03_mouse-liver.tif
+70	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		average	nearest_centroid	04_mouse-kidney.tif
+71	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		average	wann	04_mouse-kidney.tif
+72	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		average	tacco	04_mouse-kidney.tif
+73	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		average	tangram	04_mouse-kidney.tif
+74	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		average	dot	04_mouse-kidney.tif
+75	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		ward	nearest_centroid	04_mouse-kidney.tif
+76	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		ward	wann	04_mouse-kidney.tif
+77	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		ward	tacco	04_mouse-kidney.tif
+78	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		ward	tangram	04_mouse-kidney.tif
+79	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	leiden		ward	dot	04_mouse-kidney.tif
+80	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	average	nearest_centroid	04_mouse-kidney.tif
+81	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	average	wann	04_mouse-kidney.tif
+82	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	average	tacco	04_mouse-kidney.tif
+83	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	average	tangram	04_mouse-kidney.tif
+84	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	average	dot	04_mouse-kidney.tif
+85	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	ward	nearest_centroid	04_mouse-kidney.tif
+86	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	ward	wann	04_mouse-kidney.tif
+87	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	ward	tacco	04_mouse-kidney.tif
+88	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	ward	tangram	04_mouse-kidney.tif
+89	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_relabel	cell_ontology_relabel	ward	dot	04_mouse-kidney.tif
+90	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	average	nearest_centroid	04_mouse-kidney.tif
+91	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	average	wann	04_mouse-kidney.tif
+92	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	average	tacco	04_mouse-kidney.tif
+93	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	average	tangram	04_mouse-kidney.tif
+94	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	average	dot	04_mouse-kidney.tif
+95	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	ward	nearest_centroid	04_mouse-kidney.tif
+96	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	ward	wann	04_mouse-kidney.tif
+97	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	ward	tacco	04_mouse-kidney.tif
+98	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	ward	tangram	04_mouse-kidney.tif
+99	4	004_04_mouse-kidney__04_mouse-kidney	04_mouse-kidney	04_mouse-kidney	annotation_cell_ontology_class	cell_ontology_class	ward	dot	04_mouse-kidney.tif
+100	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		average	nearest_centroid	05_1_1_mouse-embryo.tif
+101	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		average	wann	05_1_1_mouse-embryo.tif
+102	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		average	tacco	05_1_1_mouse-embryo.tif
+103	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		average	tangram	05_1_1_mouse-embryo.tif
+104	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		average	dot	05_1_1_mouse-embryo.tif
+105	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		ward	nearest_centroid	05_1_1_mouse-embryo.tif
+106	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		ward	wann	05_1_1_mouse-embryo.tif
+107	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		ward	tacco	05_1_1_mouse-embryo.tif
+108	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		ward	tangram	05_1_1_mouse-embryo.tif
+109	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	leiden		ward	dot	05_1_1_mouse-embryo.tif
+110	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	average	nearest_centroid	05_1_1_mouse-embryo.tif
+111	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	average	wann	05_1_1_mouse-embryo.tif
+112	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	average	tacco	05_1_1_mouse-embryo.tif
+113	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	average	tangram	05_1_1_mouse-embryo.tif
+114	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	average	dot	05_1_1_mouse-embryo.tif
+115	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	ward	nearest_centroid	05_1_1_mouse-embryo.tif
+116	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	ward	wann	05_1_1_mouse-embryo.tif
+117	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	ward	tacco	05_1_1_mouse-embryo.tif
+118	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	ward	tangram	05_1_1_mouse-embryo.tif
+119	5	005_05_mouse-embryo__05_1_1_mouse-embryo	05_mouse-embryo	05_1_1_mouse-embryo	annotation_celltype	celltype	ward	dot	05_1_1_mouse-embryo.tif
+120	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		average	nearest_centroid	
+121	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		average	wann	
+122	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		average	tacco	
+123	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		average	tangram	
+124	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		average	dot	
+125	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		ward	nearest_centroid	
+126	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		ward	wann	
+127	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		ward	tacco	
+128	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		ward	tangram	
+129	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	leiden		ward	dot	
+130	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	average	nearest_centroid	
+131	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	average	wann	
+132	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	average	tacco	
+133	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	average	tangram	
+134	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	average	dot	
+135	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	ward	nearest_centroid	
+136	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	ward	wann	
+137	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	ward	tacco	
+138	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	ward	tangram	
+139	17	017_06_mouse-retina__06_1_1_mouse-retina	06_mouse-retina	06_1_1_mouse-retina	annotation_Cell.type	Cell.type	ward	dot	
+140	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		average	nearest_centroid	
+141	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		average	wann	
+142	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		average	tacco	
+143	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		average	tangram	
+144	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		average	dot	
+145	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		ward	nearest_centroid	
+146	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		ward	wann	
+147	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		ward	tacco	
+148	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		ward	tangram	
+149	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	leiden		ward	dot	
+150	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	average	nearest_centroid	
+151	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	average	wann	
+152	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	average	tacco	
+153	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	average	tangram	
+154	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	average	dot	
+155	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	ward	nearest_centroid	
+156	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	ward	wann	
+157	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	ward	tacco	
+158	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	ward	tangram	
+159	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_celltype	celltype	ward	dot	
+160	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	average	nearest_centroid	
+161	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	average	wann	
+162	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	average	tacco	
+163	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	average	tangram	
+164	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	average	dot	
+165	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	ward	nearest_centroid	
+166	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	ward	wann	
+167	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	ward	tacco	
+168	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	ward	tangram	
+169	89	089_07_mouse-mpfc__07_1_mouse-mpfc	07_mouse-mpfc	07_1_mouse-mpfc	annotation_L2_clusters	L2_clusters	ward	dot	
+170	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		average	nearest_centroid	
+171	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		average	wann	
+172	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		average	tacco	
+173	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		average	tangram	
+174	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		average	dot	
+175	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		ward	nearest_centroid	
+176	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		ward	wann	
+177	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		ward	tacco	
+178	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		ward	tangram	
+179	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	leiden		ward	dot	
+180	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	average	nearest_centroid	
+181	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	average	wann	
+182	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	average	tacco	
+183	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	average	tangram	
+184	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	average	dot	
+185	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	ward	nearest_centroid	
+186	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	ward	wann	
+187	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	ward	tacco	
+188	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	ward	tangram	
+189	92	092_08_mouse-visual-cortex__08_mouse-visual-cortex	08_mouse-visual-cortex	08_mouse-visual-cortex	annotation_subclass	subclass	ward	dot	
+190	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		average	nearest_centroid	09_human-breast-cancer.tif
+191	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		average	wann	09_human-breast-cancer.tif
+192	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		average	tacco	09_human-breast-cancer.tif
+193	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		average	tangram	09_human-breast-cancer.tif
+194	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		average	dot	09_human-breast-cancer.tif
+195	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		ward	nearest_centroid	09_human-breast-cancer.tif
+196	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		ward	wann	09_human-breast-cancer.tif
+197	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		ward	tacco	09_human-breast-cancer.tif
+198	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		ward	tangram	09_human-breast-cancer.tif
+199	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	leiden		ward	dot	09_human-breast-cancer.tif
+200	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	average	nearest_centroid	09_human-breast-cancer.tif
+201	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	average	wann	09_human-breast-cancer.tif
+202	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	average	tacco	09_human-breast-cancer.tif
+203	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	average	tangram	09_human-breast-cancer.tif
+204	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	average	dot	09_human-breast-cancer.tif
+205	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	ward	nearest_centroid	09_human-breast-cancer.tif
+206	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	ward	wann	09_human-breast-cancer.tif
+207	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	ward	tacco	09_human-breast-cancer.tif
+208	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	ward	tangram	09_human-breast-cancer.tif
+209	93	093_09_human-breast-cancer__09_human-breast-cancer	09_human-breast-cancer	09_human-breast-cancer	annotation_cellType	cellType	ward	dot	09_human-breast-cancer.tif
+210	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		average	nearest_centroid	
+211	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		average	wann	
+212	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		average	tacco	
+213	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		average	tangram	
+214	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		average	dot	
+215	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		ward	nearest_centroid	
+216	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		ward	wann	
+217	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		ward	tacco	
+218	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		ward	tangram	
+219	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	leiden		ward	dot	
+220	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	average	nearest_centroid	
+221	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	average	wann	
+222	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	average	tacco	
+223	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	average	tangram	
+224	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	average	dot	
+225	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	nearest_centroid	
+226	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	wann	
+227	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	tacco	
+228	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	tangram	
+229	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	dot	
