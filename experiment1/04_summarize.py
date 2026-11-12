@@ -4,7 +4,7 @@ Summarize all results from Experiment1 into a few csvs.
 This script only reads the run folders and edits/writes nothing outside ``summary/``.
 
 Produces:
-    summary/best_per_run.csv          per sweep the compared K: annotation start K = T and best overall, Leiden start best overall
+    summary/best_per_run.csv          per sweep the compared K: annotation start K = T and best on all criteria, Leiden start best on all criteria
     summary/all_k_per_run.csv.gz      every k_comparison.csv row, with the run's keys
     summary/resources_scaffold.csv    time + memory per scaffold build (one per pair), with its phases
     summary/resources_sweep.csv       time + memory per sweep, its phases, and the two derived costs
@@ -49,13 +49,13 @@ def figure_rows(run: pd.Series) -> list[dict]:
     """The K of a run that the figures compare:
 
         baseline          annotation start, K = T (the identity cut)
-        annotation_best   annotation start, K = best.overall of k_selection.json
-        spatialaim        Leiden start, K = best.overall of k_selection.json
+        annotation_best   annotation start, K = "all" of k_selection.json
+        spatialaim        Leiden start, K = "all" of k_selection.json
     """
     table = pd.read_csv(ROOT / run["run_id"] / "k_comparison.csv")
     table = table.set_index(table["k"].astype(int))
     selection = json.loads((ROOT / run["run_id"] / "k_selection.json").read_text(encoding="utf-8"))
-    best = (selection.get("best") or {}).get("overall")
+    best = selection["all"]
     best_k = int(best["k"]) if best is not None and int(best["k"]) in table.index else None
     if run["ann_key"]:
         roles = [("baseline", int(table.index.max())), ("annotation_best", best_k)]
@@ -63,7 +63,7 @@ def figure_rows(run: pd.Series) -> list[dict]:
         roles = [("spatialaim", best_k)]
     return [{"pair_id": run["pair_id"], "reference": run["sc"], "pair_dir": run["pair_dir"],
              "role": role, "ann_key": run["ann_key"], "tree": run["tree"], "mapper": run["mapper"],
-             "k": k, "score_overall": float(table.loc[k, "overall"]),
+             "k": k, "score_all": float(table.loc[k, "all"]),
              **{m: float(table.loc[k].get(m, float("nan"))) for m in METRICS}}
             for role, k in roles if k is not None]
 

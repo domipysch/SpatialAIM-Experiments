@@ -10,8 +10,9 @@
 #
 #   a  SpatialAIM vs annotation, per spot | per gene | cell types used
 #   b  the five mappers at the K each proposes, per cell   c per gene
-#      d runtime   e whole run vs one annotation (on d's y axis)
-#   f  the start clusters   g ward cut   h average cut   (UMAPs)
+#      d whole run vs one annotation (runtime)
+#   e-h  criterion scores over the Pareto-optimal K: (Kidney, SSp) x (NC, DOT)
+#   i  the start clusters   j ward cut   k average cut   (UMAPs)
 #
 # The first row is one argument in three panels of identical geometry:
 # reconstruction barely moves either way, and SpatialAIM gets there with substantially
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 FIGURE = "2"
 PANELS = paths.panel_dir(FIGURE)
 OUT = paths.drawing(FIGURE)
-UMAPS = PANELS.parent / "umaps"   # the hand-taken screenshots of row (f-h)
+UMAPS = PANELS.parent / "umaps"   # the hand-taken screenshots of row (i-k)
 
 PAD = 14
 # The paper places the figure at its 5.17 in text width, so the drawing is
@@ -63,8 +64,8 @@ LETTER_DROP = FS_LETTER * 1.2 + 6
 LINE = FS_HEAD * 1.2
 
 ROW_TOP = 50
-ROW_GAP = 28          # row (a)'s panel bottom to row (b-e)'s letter line
-ROW3_GAP = 20         # the same from row (b-e) to row (f-h)
+ROW_GAP = 28          # row (a)'s panel bottom to row (b-d)'s letter line
+ROW3_GAP = 20         # the same from row (b-d) to row (e-h), and on to (i-k)
 COL_GAP = 60
 LEG_GAP = 30          # key baseline to the letter line of row (a) below it
 
@@ -74,12 +75,17 @@ HEADINGS = {
     "delta_spot": "Reconstruction and granularity, comparing SpatialAIM and given annotations",
     "mappers_cell": "Comparing mappers, per cell",
     "mappers_gene": "Mappers, per gene",
-    "runtime": "Runtime, all K",
-    "runtime_vs_annotation": "Full pipeline",
+    "runtime_vs_annotation": "Runtime full pipeline",
+    "tradeoff_kidney_nearest_centroid": "Kidney · Nearest centroid",
+    "tradeoff_kidney_dot": "Kidney · DOT",
+    "tradeoff_ssp_nearest_centroid": "SSp · Nearest centroid",
+    "tradeoff_ssp_dot": "SSp · DOT",
     "start": "Leiden start clusters",
     "ward": "Ward linkage, K = 2",
     "average": "Average linkage, K = 2",
 }
+TRADE_ROW = ("tradeoff_kidney_nearest_centroid", "tradeoff_kidney_dot",
+             "tradeoff_ssp_nearest_centroid", "tradeoff_ssp_dot")
 UMAP_ROW = ("start", "ward", "average")
 
 drawing = Drawing("f22", PANELS, paths.VAULT)
@@ -128,15 +134,15 @@ def build(manifest: dict) -> None:
         text(letter, x, top - LETTER_DROP, size=FS_LETTER)
         text(HEADINGS[name], x + HEAD_DX, top - LETTER_DROP + 9, size=FS_HEAD)
 
-    # All rows occupy the same span: they start at PAD and end where row (b-e) --
-    # the mapper comparison and the two cost panels -- does; row (a)'s
+    # All rows occupy the same span: they start at PAD and end where row (b-d) --
+    # the mapper comparison and the cost panel -- does; row (a)'s
     # mapper-name column takes up whatever the three heat maps leave.
     gap = 30
     w_cell, h_map = size("mappers_cell")
     w_map = w_cell + gap + size("mappers_gene")[0]   # b and c together
-    w_cost = size("runtime")[0]
+    w_cost = size("runtime_vs_annotation")[0]
     w_heat, h_heat = size("delta_spot")
-    span = w_map + 2 * w_cost + 2 * gap
+    span = w_map + w_cost + gap
     names_w = span - 3 * w_heat - 2 * gap    # the column of mapper names
     heat_x = PAD + names_w
 
@@ -183,18 +189,30 @@ def build(manifest: dict) -> None:
                             ("mappers_gene", PAD + w_cell + gap, "c")):
         label(name, x, row2, letter)
         drawing.image(name, x, row2, manifest)
-    for i, (name, letter) in enumerate((("runtime", "d"), ("runtime_vs_annotation", "e"))):
-        x = PAD + w_map + gap + i * (w_cost + gap)
-        label(name, x, row2, letter)
-        drawing.image(name, x, row2, manifest)
+    x = PAD + w_map + gap
+    label("runtime_vs_annotation", x, row2, "d")
+    drawing.image("runtime_vs_annotation", x, row2, manifest)
 
-    # ---------------- row 3: the UMAPs ---------------------------------------
+    # ---------------- row 3: the K tradeoff ----------------------------------
+    # Four panels across the same span, (e) carrying the shared y axis.
+    # the key of the six curves as a strip above the row's letters
+    key_top = row2 + h_map + ROW3_GAP
+    drawing.image("tradeoff_key", PAD, key_top, manifest)
+    rowt = key_top + size("tradeoff_key")[1] + 6 + LETTER_DROP
+    x = PAD
+    for name, letter in zip(TRADE_ROW, "efgh"):
+        label(name, x, rowt, letter)
+        drawing.image(name, x, rowt, manifest)
+        x += size(name)[0] + gap
+    h_trade = max(size(name)[1] for name in TRADE_ROW)
+
+    # ---------------- row 4: the UMAPs ---------------------------------------
     # Three screenshots across the same span as the rows above, with the same
     # gap, each under its own letter and heading.
-    row3 = row2 + h_map + ROW3_GAP + LETTER_DROP
+    row3 = rowt + h_trade + ROW3_GAP + LETTER_DROP
     add_umaps(manifest, (span - 2 * gap) / 3)
     h_umap = 0
-    for i, (name, letter) in enumerate(zip(UMAP_ROW, "fgh")):
+    for i, (name, letter) in enumerate(zip(UMAP_ROW, "ijk")):
         x = PAD + i * (panels[name]["w"] + gap)
         label(name, x, row3, letter)
         drawing.image(name, x, row3, manifest, folder=UMAPS)

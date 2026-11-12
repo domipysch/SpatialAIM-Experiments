@@ -7,8 +7,8 @@ row is one sweep at the one K the figures compare:
 
     baseline     annotation start, K = T (the identity cut: every spot maps
                  straight onto the author's annotation)
-    spatialaim        Leiden start, K = best.overall from k_selection.json
-    annotation_best   annotation start, K = best.overall
+    spatialaim        Leiden start, K = "all" from k_selection.json
+    annotation_best   annotation start, K = "all"
 
 The figures compare against the baseline the better of the two SpatialAIM starts
 (``best_start``). All are read from the same column of the same metric table, so
@@ -40,10 +40,10 @@ def resources(stage: str) -> pd.DataFrame:
 
 
 def annotation_best(df: pd.DataFrame) -> pd.DataFrame:
-    """The annotation-start runs at K = best.overall: the ``annotation_best`` rows
+    """The annotation-start runs at K = "all": the ``annotation_best`` rows
     of best_per_run.csv, or, for a summary written before 04_summarize.py had
     them, the same rows rebuilt from all_k_per_run.csv.gz by the same rule
-    (highest ``overall``, ties to the smaller K, as compare_ks.selection._best_k)."""
+    (highest ``all``, ties to the smaller K, as compare_ks.selection._best_k)."""
     rows = df[df["role"] == "annotation_best"]
     if len(rows):
         return rows
@@ -52,8 +52,8 @@ def annotation_best(df: pd.DataFrame) -> pd.DataFrame:
     allk = pd.read_csv(paths.EXP1_SUMMARY / "all_k_per_run.csv.gz",
                        keep_default_na=False, na_values=[""])
     allk = allk[allk["ann_key"].notna()].sort_values("k")
-    best = allk.loc[allk.groupby("run_id")["overall"].idxmax()]
-    return (best.rename(columns={"sc": "reference", "overall": "score_overall"})
+    best = allk.loc[allk.groupby("run_id")["all"].idxmax()]
+    return (best.rename(columns={"sc": "reference", "all": "score_all"})
                 .assign(role="annotation_best")[df.columns])
 
 
@@ -67,13 +67,13 @@ def best_start(df: pd.DataFrame) -> pd.DataFrame:
     Output
         the baseline rows unchanged, plus one ``spatialaim`` row per (pair, tree,
         mapper): among the Leiden start and every annotation
-        start, each at its own K = best.overall, the one with the highest
-        ``score_overall``. Its ``ann_key`` says which start won (empty = Leiden).
+        start, each at its own K = "all", the one with the highest
+        ``score_all``. Its ``ann_key`` says which start won (empty = Leiden).
     """
     join = ["pair_dir", "tree", "mapper"]
     candidates = pd.concat([df[df["role"] == "spatialaim"], annotation_best(df)],
                            ignore_index=True)
-    best = candidates.loc[candidates.groupby(join)["score_overall"].idxmax()]
+    best = candidates.loc[candidates.groupby(join)["score_all"].idxmax()]
     won = best["ann_key"].isna()
     logging.info("best start: Leiden in %d of %d runs (%.0f%%)",
                  won.sum(), len(best), 100 * won.mean())
@@ -86,7 +86,7 @@ def paired(df: pd.DataFrame, metric: str) -> pd.DataFrame:
 
     Input
         df      best_start(best_per_run.csv): one row per run, role "spatialaim"
-                (the better start, K = best.overall) or "baseline" (annotation
+                (the better start, K = "all") or "baseline" (annotation
                 start, K = T)
         metric  the metric to compare, e.g. "cossim_hard_raw_spot"
 
@@ -98,7 +98,7 @@ def paired(df: pd.DataFrame, metric: str) -> pd.DataFrame:
 
     Both sides use the same pair, tree and mapper, so the difference is only the
     starting partition and K. Where a reference has two annotations, the baseline is
-    the one with the higher ``score_overall`` -- the score SpatialAIM picks its
+    the one with the higher ``score_all`` -- the score SpatialAIM picks its
     own K by. Choosing it on the plotted metric would favour the baseline per
     panel; always taking the first annotation would be arbitrary, and it matters
     (on 01_mouse-ssp SpatialAIM beats ``cellType``, 3 types, by +0.26 per-spot
@@ -107,7 +107,7 @@ def paired(df: pd.DataFrame, metric: str) -> pd.DataFrame:
     join = ["pair_dir", "tree", "mapper"]
     spatialaim = df[df["role"] == "spatialaim"]
     base = df[df["role"] == "baseline"]
-    base = base.loc[base.groupby(join)["score_overall"].idxmax()]
+    base = base.loc[base.groupby(join)["score_all"].idxmax()]
     out = spatialaim.merge(base[join + [metric, "k", "ann_key"]],
                            on=join, suffixes=("", "_base"), validate="one_to_one")
     out["delta"] = out[metric] - out[f"{metric}_base"]

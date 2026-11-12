@@ -3,8 +3,8 @@ Panels of the biology/topology figure (figure 4), each as its own PNG, for assem
 in Excalidraw -- either for one mapper (``--mapper``, into figure_4/<mapper>/) or
 aggregated over all five (``--all-mappers``, into figure_4/all_mappers/).
 
-SpatialAIM is, per pair, tree and mapper, the better-scoring (score_overall) of the
-Leiden start and the annotation start(s), each at its own K = best.overall
+SpatialAIM is, per pair, tree and mapper, the better-scoring (score_all) of the
+Leiden start and the annotation start(s), each at its own K = "all"
 (exp1.best_start). The annotation it is compared with is at K = T.
 
 An optional top row, then two rows of three, one row per criterion:

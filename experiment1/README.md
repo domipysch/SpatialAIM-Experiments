@@ -142,7 +142,7 @@ regenerate a drawing (it overwrites hand edits).
 
 | File | Content |
 |---|---|
-| `best_per_run.csv` | per sweep the compared K: `spatialaim` (Leiden, best overall), `baseline` (annotation, K = T), `annotation_best` (annotation, best overall), with the plotted metrics and `shape` |
+| `best_per_run.csv` | per sweep the compared K: `spatialaim` (Leiden, best on all criteria), `baseline` (annotation, K = T), `annotation_best` (annotation, best on all criteria), with `score_all`, the plotted metrics and `shape` |
 | `all_k_per_run.csv.gz` | every `k_comparison.csv` row with the run's keys |
 | `resources_sweep.csv` | per sweep: time split, peaks, `cache_hit`, plus `full_pipeline_s` (with the scaffold build) and `one_annotation_s` (annotation at K = T only) |
 | `resources_per_k.csv` | per sweep and K: seconds and peak memory of `map` and `analysis` |

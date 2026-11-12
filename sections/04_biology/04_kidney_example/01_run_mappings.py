@@ -10,7 +10,7 @@ results of Experiment 1 stay on the cluster, only its summary is pulled:
                  mapped straight onto the author's types); where a reference has
                  two annotations, the one exp1.paired compares against
     spatialaim   the start exp1.best_start picks (Leiden or an annotation), at
-                 its K = best.overall
+                 its K = "all"
 
 Each is one ``spatialaim run`` with --k_min = --k_max = that K and only that
 side's start (an annotation start with --no_leiden_start), so no sweep is

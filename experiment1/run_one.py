@@ -541,7 +541,7 @@ def merge(row: dict, unit: dict) -> int:
         shutil.rmtree(staging, ignore_errors=True)
 
     sel = json.loads((dest / "k_selection.json").read_text(encoding="utf-8"))
-    print(f"merged {len(ks)} K -> {dest}\n  best overall K = {sel['best']['overall']}\n"
+    print(f"merged {len(ks)} K -> {dest}\n  best K on all criteria = {sel['all']}\n"
           f"  wall {res['wall_s'] / 3600:.1f} h summed over the K jobs")
     return 0
 

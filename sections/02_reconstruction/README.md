@@ -9,7 +9,7 @@ SpatialAIM is, per pair, tree and mapper, the following configuration:
 - take from the annotation start(s) mapping at K = `best.overall`
 - out of those, select the mapping with the best overall score
 
-The annotation it is compared with is at K = T. The cost panels(d, e) time the Leiden runs, the full pipeline.
+The annotation it is compared with is at K = T. The cost panel (d) times a whole SpatialAIM run (Leiden start, full pipeline) against mapping one annotation.
 
 Absolute cosine similarity is not comparable across references, so every panel is
 a paired comparison *within* a reference, aggregated per reference.
@@ -32,7 +32,9 @@ result, e.g. the one-pair test.
 | `delta_spot`, `delta_gene` | Δ cosine similarity, SpatialAIM − annotation, on a scale whose near-white band is stretched to ±0.1: almost every cell lies inside it, which is the row's point |
 | `delta_k` | Δ number of cell types it took, clipped at ±20 (MTG runs to +69) |
 | `mappers_cell`, `mappers_gene` | panels b, c: the five mappers at their own proposal, centred within each reference — the only way five mappers compare across ten incommensurable references; per cell and per gene, on one shared y axis labelled once in b |
-| `umaps/{start,ward,average}.png` | row f–h: screenshots taken by hand from the GUI, not written by `panels.py`; kept in `Excalidraw/figure_2/umaps/` and placed by `make_excalidraw.py` at the row width |
+| `runtime_vs_annotation` | panel d: a whole SpatialAIM run against mapping one annotation, per mapper, log runtime |
+| `tradeoff_<ref>_<mapper>` | panels e–h: the three criterion scores at the Pareto-optimal K of one Leiden-start sweep (average linkage), proposed K dashed; (Kidney, SSp) × (Nearest centroid, DOT); shared y axis 0–1 labelled in e |
+| `umaps/{start,ward,average}.png` | row i–k: screenshots taken by hand from the GUI, not written by `panels.py`; kept in `Excalidraw/figure_2/umaps/` and placed by `make_excalidraw.py` at the row width |
 
 Rows of the heat maps are mapper × linkage; their columns are the ten references.
 The mapper names are drawn in Excalidraw, not in the images, so the three heat

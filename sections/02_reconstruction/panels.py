@@ -2,8 +2,8 @@
 Panels of the reconstruction figure (figure 2), each as its own PNG, for assembly
 in Excalidraw (Excalidraw/figure_2/figure_2.excalidraw.md).
 
-SpatialAIM is, per pair, tree and mapper, the better-scoring (score_overall) of the
-Leiden start and the annotation start(s), each at its own K = best.overall
+SpatialAIM is, per pair, tree and mapper, the better-scoring (score_all) of the
+Leiden start and the annotation start(s), each at its own K = "all"
 (exp1.best_start).
 
     a  delta_spot   Δ cosine similarity per spot, SpatialAIM - annotation (K = T)
@@ -13,10 +13,13 @@ Leiden start and the annotation start(s), each at its own K = best.overall
     b  mappers_cell the five mappers at their own proposal, centred within each pair,
                     per cell (the spot metric)
     c  mappers_gene the same per gene, on b's y axis
-    d  runtime      what each mapper costs: the K sweep from the Leiden start
-    e  runtime_vs_annotation
+    d  runtime_vs_annotation
                     a whole SpatialAIM run (Leiden scaffold + every K) against
-                    mapping one annotation (its scaffold + K = T), on d's y axis
+                    mapping one annotation (its scaffold + K = T)
+    e-h tradeoff_<ref>_<mapper>
+                    the three criterion scores over the Pareto-optimal K of one
+                    Leiden-start sweep (average linkage), proposed K marked;
+                    (Kidney, SSp) x (Nearest centroid, DOT)
 
 Supplementary figure 6 (figure "S6"):
 
@@ -33,12 +36,14 @@ import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from spatialaim.analysis.compare_ks import CRITERIA, best_ks, pareto_mask
 from spatialaim_experiments import exp1, paths
 from spatialaim_experiments.style import (
     CMAP_DK,
     DK_LIMIT,
     HEAT_AXES,
     MAPPER_COLOURS,
+    MAPPER_LABELS,
     MAPPERS,
     PALE,
     REFERENCE_LABELS,
@@ -61,8 +66,8 @@ supplement = PanelWriter(paths.panel_dir(SUPPLEMENT))
 # of each image holds the rotated reference names, the bottom the colour bar.
 HEAT_SIZE = (2.13, 2.65)
 HEAT_BAR = (0.12, 0.185, 0.76, 0.028)
-# Row (b-e): the mapper comparison, per cell and per gene, and the two cost panels,
-# one plotting band for all four (same height and vertical fractions); with three
+# Row (b-d): the mapper comparison, per cell and per gene, and the cost panel,
+# one plotting band for all three (same height and vertical fractions); with two
 # 0.1 in gaps as wide as row (a), 7.0 in. The plotting box must be at least as tall as the rotated y-labels are long.
 # The band is 1.62 in tall (was 2.14, squashed to make room for row f-h). The
 # plotting box is 1.28 in -- which is why "all K" moved from the runtime label
@@ -77,11 +82,25 @@ MAPPER_LEFT, MAPPER_INSET = 0.735, 0.05
 MAPPER_PLOT = (4.3 - 0.1 - MAPPER_LEFT - MAPPER_INSET) / 2
 MAPPER_SIZES = {"mappers_cell": (MAPPER_LEFT + MAPPER_PLOT, BAND_H),
                 "mappers_gene": (MAPPER_INSET + MAPPER_PLOT, BAND_H)}
+# COST_SIZE / COST_AXES: the supplementary memory panel (S6), five boxes.
 COST_SIZE = (1.25, BAND_H)
 COST_AXES = (0.60 / 1.25, BAND_Y[0], 0.60 / 1.25, BAND_Y[1])
-# (e) shares (d)'s y axis as (c) shares (b)'s: same width as (d), its plotting box
-# set in by MAPPER_INSET and nearly twice as wide, for ten boxes against d's five.
-PAIR_AXES = (MAPPER_INSET / 1.25, BAND_Y[0], 1.15 / 1.25, BAND_Y[1])
+# (d) takes the width of the two cost panels it replaced (2 x 1.25 + one 0.1 gap)
+# and labels its own y axis in the same 0.60 in margin.
+WHOLE_W = 2 * 1.25 + 0.1
+WHOLE_SIZE = (WHOLE_W, BAND_H)
+WHOLE_AXES = (0.60 / WHOLE_W, BAND_Y[0], (WHOLE_W - 0.60 - 0.05) / WHOLE_W, BAND_Y[1])
+
+# Row (e-h): four K-tradeoff panels across the same 7.0 in as row (b-d), with three
+# 0.1 in gaps; (e) carries the shared y axis in TRADE_LEFT, (f-h) only an inset.
+TRADE_CASES = [("04_mouse-kidney", "nearest_centroid"), ("04_mouse-kidney", "dot"),
+               ("01_mouse-ssp", "nearest_centroid"), ("01_mouse-ssp", "dot")]
+TRADE_TREE = "average"
+TRADE_H, TRADE_BELOW, TRADE_ABOVE = 1.62, 0.36, 0.06
+TRADE_LEFT, TRADE_INSET = 0.50, 0.05
+TRADE_PLOT = (7.0 - 3 * 0.1 - TRADE_LEFT - 3 * TRADE_INSET) / 4
+# Criterion colours: neutral hues away from the five mapper colours.
+CRITERION_COLOURS = {"recon": "#404040", "spatial": "#7570B3", "coherence": "#A6761D"}
 
 # Δ cosine: a fixed scale, not one fitted to the data -- almost every cell is near
 # zero, which is the row's point, and autoscaling would turn that noise into colour.
@@ -187,7 +206,7 @@ def centred(df: pd.DataFrame, metric: str) -> pd.Series:
 
     Input
         df      best_per_run.csv: one row per run; only the SpatialAIM rows
-                (better start, K = best.overall) are used
+                (better start, K = "all") are used
         metric  e.g. "cossim_hard_raw_spot"
 
     Output
@@ -256,11 +275,11 @@ def panel_mappers(df: pd.DataFrame) -> None:
 
 
 # ---------------------------------------------------------------------------
-# (d, e) what each mapper costs
+# (d) what each mapper costs; memory for S6
 # ---------------------------------------------------------------------------
 
 def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFrame:
-    """One cost value per (reference, mapper), for the boxes of panels d and e.
+    """One cost value per (reference, mapper), for the boxes of the S6 memory panel.
 
     Input
         res     resources_sweep.csv (exp1.resources("sweep")): one row per sweep
@@ -279,7 +298,7 @@ def cost_per_reference(res: pd.DataFrame, column: str, unit: float) -> pd.DataFr
 
 
 def whole_runs_per_reference(res: pd.DataFrame) -> pd.DataFrame:
-    """The two sides of panel e, one value per (reference, mapper, side), in minutes.
+    """The two sides of panel d, one value per (reference, mapper, side), in minutes.
 
     Input
         res     resources_sweep.csv (exp1.resources("sweep")), with the derived costs
@@ -347,18 +366,22 @@ def panel_cost(cost: pd.DataFrame, ylabel: str, log: bool):
     return fig, ax
 
 
-def panel_whole_runs(cost: pd.DataFrame):
+def panel_whole_runs(cost: pd.DataFrame) -> None:
     """Per mapper two boxes, each holding the ten references' values: filled, a
-    whole SpatialAIM run; hollow, one annotation mapped. y axis labelled by (d).
-    Returns (fig, ax), unsaved."""
-    fig = plt.figure(figsize=COST_SIZE)
-    ax = cost_axes(fig, PAIR_AXES, None, log=True)
+    whole SpatialAIM run; hollow, one annotation mapped."""
+    fig = plt.figure(figsize=WHOLE_SIZE)
+    ax = cost_axes(fig, WHOLE_AXES, "Runtime (min)", log=True)
     for m, mapper in enumerate(MAPPERS):
         for side, dx, hollow in (("spatialaim", -0.19, False), ("annotation", 0.19, True)):
             values = cost.loc[(cost["mapper"] == mapper) & (cost["side"] == side), "value"]
             mapper_box(ax, values.to_numpy(), m + dx, 0.31, mapper, outliers=True,
                        hollow=hollow)
     mapper_columns(ax)
+    # the mapper names in small type under their pairs; the colours already say it
+    ax.set_xticks(range(len(MAPPERS)))
+    ax.set_xticklabels([MAPPER_LABELS[m].replace(" ", "\n") for m in MAPPERS],
+                       fontsize=6, linespacing=0.9)
+    ax.tick_params(axis="x", length=0, pad=1.5)
     grey = "#7F7F7F"
     ax.legend(handles=[mpl.patches.Patch(facecolor=grey, alpha=0.5, edgecolor=grey,
                                          label="SpatialAIM"),
@@ -366,8 +389,116 @@ def panel_whole_runs(cost: pd.DataFrame):
                                          label="Annotation")],
               loc="upper left", frameon=False, fontsize=6.5, handlelength=0.9,
               handleheight=0.7, borderaxespad=0.1, labelspacing=0.2, handletextpad=0.3)
-    ax.tick_params(axis="y", labelleft=False)
-    return fig, ax
+    log_ticks(ax)
+    panels.save(fig, "runtime_vs_annotation")
+
+
+# ---------------------------------------------------------------------------
+# (e-h) the K tradeoff of one sweep
+# ---------------------------------------------------------------------------
+
+def trade_name(reference: str, mapper: str) -> str:
+    return f"tradeoff_{reference.split('_', 1)[1].split('-')[-1]}_{mapper}"
+
+
+def sweep_scores(allk: pd.DataFrame, reference: str, mapper: str,
+                 start_tag: str = LEIDEN_TAG) -> pd.DataFrame:
+    """One sweep (TRADE_TREE linkage) of ``reference``'s single pair from
+    ``start_tag``: one row per K with the three criterion scores, sorted by K."""
+    run = allk[(allk["sc"] == reference) & (allk["start_tag"] == start_tag)
+               & (allk["tree"] == TRADE_TREE) & (allk["mapper"] == mapper)]
+    assert run["pair_id"].nunique() == 1, (reference, mapper, start_tag)
+    return run.sort_values("k").reset_index(drop=True)
+
+
+def annotation_sweep(allk: pd.DataFrame, reference: str, mapper: str) -> pd.DataFrame:
+    """The annotation-start sweep panel a compares against: where a reference has
+    two annotations, the one with the higher score on all criteria at K = T (exp1.paired).
+    Its last row is K = T."""
+    tags = allk.loc[(allk["sc"] == reference) & allk["ann_key"].notna(), "start_tag"].unique()
+    sweeps = [sweep_scores(allk, reference, mapper, tag) for tag in tags]
+    return max(sweeps, key=lambda t: t["all"].iloc[-1])
+
+
+# The two measured curves of each criterion, as the key names them.
+CURVE_LABELS = {"cossim_hard_raw_spot": "per cell", "cossim_hard_raw_gene": "per gene",
+                "spatial_assort_celltype": "per cell type", "spatial_assort_global": "global",
+                "modularity_st_expression": "ST", "modularity_shared": "reference"}
+
+
+def panel_tradeoff_key() -> None:
+    """The key of row (e-h) as its own strip across the row: the six curves,
+    the proposed K and the annotation's K = T values."""
+    fig = plt.figure(figsize=(7.0, 0.36))
+    handles, labels = [], []
+    for criterion in CRITERIA:
+        colour = CRITERION_COLOURS[criterion.key]
+        for column, open_ in zip(criterion.columns, (False, True)):
+            handles.append(mpl.lines.Line2D([], [], color=colour, lw=0.9 if open_ else 1.1,
+                                            marker="o", markersize=2.5, markeredgewidth=0.7,
+                                            markerfacecolor="white" if open_ else colour))
+            labels.append(f"{criterion.short} {CURVE_LABELS[column]}")
+    handles += [mpl.lines.Line2D([], [], color="#7F7F7F", lw=0.8, ls=(0, (3, 2))),
+                mpl.lines.Line2D([], [], color="#7F7F7F", lw=0.8, ls=(0, (1, 1.5)))]
+    labels += ["Proposed K", "Annotation, K = T"]
+    # mode="expand" spreads the four columns over the full strip width
+    fig.legend(handles, labels, loc="center", ncol=4, frameon=False, fontsize=8,
+               mode="expand", bbox_to_anchor=(0, 0, 1, 1), borderaxespad=0,
+               handlelength=1.6, columnspacing=1.2, labelspacing=0.25, handletextpad=0.4)
+    panels.save(fig, "tradeoff_key")
+
+
+def panel_tradeoffs(allk: pd.DataFrame) -> dict:
+    """Four panels, each the criterion curves at the Pareto-optimal K of one
+    Leiden-start sweep, joined by lines, with the
+    proposed K (best on all criteria) dashed and each criterion's value for the
+    annotation mapped as is (K = T) as a dotted horizontal line. Returns the
+    proposed and Pareto K per panel for the manifest."""
+    info = {}
+    cases = []
+    for reference, mapper in TRADE_CASES:
+        annotation = annotation_sweep(allk, reference, mapper)
+        table = sweep_scores(allk, reference, mapper)
+        cases.append((reference, mapper, annotation.iloc[-1], table[pareto_mask(table)],
+                      best_ks(table)["all"][0]))
+    # one x range per reference, shared by its two mappers' panels
+    span = {}
+    for reference, _, _, front, proposed in cases:
+        lo, hi = span.get(reference, (np.inf, -np.inf))
+        span[reference] = (min(lo, front["k"].min(), proposed), max(hi, front["k"].max(), proposed))
+    for i, (reference, mapper, at_t, front, proposed) in enumerate(cases):
+        left = TRADE_LEFT if i == 0 else TRADE_INSET
+        w = left + TRADE_PLOT
+        fig = plt.figure(figsize=(w, TRADE_H))
+        ax = fig.add_axes((left / w, TRADE_BELOW / TRADE_H, TRADE_PLOT / w,
+                           (TRADE_H - TRADE_BELOW - TRADE_ABOVE) / TRADE_H))
+        ax.axvline(proposed, color="#7F7F7F", lw=0.8, ls=(0, (3, 2)), zorder=1)
+        # Both measured curves of every criterion (the Pareto filter still runs on
+        # the three combined scores): the first filled, the second open.
+        for criterion in CRITERIA:
+            colour = CRITERION_COLOURS[criterion.key]
+            for column, open_ in zip(criterion.columns, (False, True)):
+                ax.axhline(at_t[column], color=colour, lw=0.7, ls=(0, (1, 1.5)), zorder=1)
+                ax.plot(front["k"], front[column], color=colour, lw=0.9 if open_ else 1.1,
+                        marker="o", markersize=2.5, zorder=2,
+                        markerfacecolor="white" if open_ else colour, markeredgewidth=0.7)
+        ax.set_ylim(min(0, ax.get_ylim()[0]), 1)
+        ax.set_xlabel("K", labelpad=1.5)
+        lo, hi = span[reference]
+        pad = max(0.5, 0.05 * (hi - lo))
+        ax.set_xlim(lo - pad, hi + pad)
+        ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(integer=True, nbins=5))
+        bare(ax)
+        if i == 0:
+            ax.set_ylabel("Value")
+        else:
+            ax.tick_params(axis="y", labelleft=False)
+        name = trade_name(reference, mapper)
+        panels.save(fig, name)
+        info[name] = {"proposed_k": int(proposed), "pareto_k": front["k"].astype(int).tolist()}
+        logging.info("%s (%s, T=%d): proposed K=%d, Pareto K=%s", name, at_t["ann_key"],
+                     at_t["k"], proposed, info[name]["pareto_k"])
+    return info
 
 
 # ---------------------------------------------------------------------------
@@ -383,14 +514,10 @@ def main() -> None:
     panel_mappers(df)
 
     runs = exp1.resources("sweep")
-    sweep = panel_cost(cost_per_reference(runs, "wall_s", 1 / 60), "Runtime (min)", log=True)
-    whole = panel_whole_runs(whole_runs_per_reference(runs))
-    # the shared axis: both span what either needs, and only (d) is labelled
-    lows, highs = zip(*(ax.get_ylim() for _, ax in (sweep, whole)))
-    for (fig, ax), name in ((sweep, "runtime"), (whole, "runtime_vs_annotation")):
-        ax.set_ylim(min(lows), max(highs))
-        log_ticks(ax)
-        panels.save(fig, name)
+    panel_whole_runs(whole_runs_per_reference(runs))
+    allk = pd.read_csv(paths.EXP1_SUMMARY / "all_k_per_run.csv.gz")
+    panel_tradeoff_key()
+    panel_tradeoffs(allk)
     panels.write_manifest()
 
     fig, _ = panel_cost(cost_per_reference(runs, "peak_rss_tree_mb", 1 / 1024),

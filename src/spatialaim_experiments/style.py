@@ -77,16 +77,17 @@ HEAT_AXES = (0.02, 0.265, 0.96, 0.475)
 
 # The ten references in corpus order -- the column order of every heat map --
 # and the short name each is labelled with.
+# Sentence case for words; abbreviations as written in the field (Allen SSp, mPFC, MTG).
 REFERENCE_LABELS = {
-    "01_mouse-ssp": "ssp",
-    "02_colorectal-cancer": "colorectal",
-    "03_mouse-liver": "liver",
-    "04_mouse-kidney": "kidney",
-    "05_mouse-embryo": "embryo",
-    "06_mouse-retina": "retina",
+    "01_mouse-ssp": "SSp",
+    "02_colorectal-cancer": "Colorectal",
+    "03_mouse-liver": "Liver",
+    "04_mouse-kidney": "Kidney",
+    "05_mouse-embryo": "Embryo",
+    "06_mouse-retina": "Retina",
     "07_mouse-mpfc": "mPFC",
-    "08_mouse-visual-cortex": "visual",
-    "09_human-breast-cancer": "breast",
+    "08_mouse-visual-cortex": "Visual",
+    "09_human-breast-cancer": "Breast",
     "10_human-mtg": "MTG",
 }
 
