@@ -50,6 +50,10 @@ SPLIT_BY_K = {
     (4, "annotation_cell_ontology_class", "tangram"),       # 2.9 h
     (4, "annotation_cell_ontology_relabel", "tangram"),     # 1.8 h
     (2, LEIDEN_TAG, "tangram"),                             # 3.4 h
+    # 95 (CRC P2, not in Experiment 1): 331k Xenium cells, twice pair 93's, so every
+    # DOT and Tangram run up front.
+    *{(95, tag, m) for tag in (LEIDEN_TAG, "annotation_Level1", "annotation_Level2")
+      for m in ("dot", "tangram")},
 }
 
 

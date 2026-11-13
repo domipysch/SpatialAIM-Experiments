@@ -229,3 +229,33 @@ run	pair_id	pair_dir	sc	st	start_tag	ann_key	linkage	mapper	segmentation
 227	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	tacco	
 228	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	tangram	
 229	94	094_10_human-mtg__10_human-mtg	10_human-mtg	10_human-mtg	annotation_cellType	cellType	ward	dot	
+230	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		average	nearest_centroid	11_human-crc-p2.tif
+231	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		average	wann	11_human-crc-p2.tif
+232	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		average	tacco	11_human-crc-p2.tif
+233	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		average	tangram	11_human-crc-p2.tif
+234	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		average	dot	11_human-crc-p2.tif
+235	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		ward	nearest_centroid	11_human-crc-p2.tif
+236	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		ward	wann	11_human-crc-p2.tif
+237	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		ward	tacco	11_human-crc-p2.tif
+238	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		ward	tangram	11_human-crc-p2.tif
+239	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	leiden		ward	dot	11_human-crc-p2.tif
+240	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	average	nearest_centroid	11_human-crc-p2.tif
+241	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	average	wann	11_human-crc-p2.tif
+242	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	average	tacco	11_human-crc-p2.tif
+243	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	average	tangram	11_human-crc-p2.tif
+244	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	average	dot	11_human-crc-p2.tif
+245	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	ward	nearest_centroid	11_human-crc-p2.tif
+246	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	ward	wann	11_human-crc-p2.tif
+247	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	ward	tacco	11_human-crc-p2.tif
+248	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	ward	tangram	11_human-crc-p2.tif
+249	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level1	Level1	ward	dot	11_human-crc-p2.tif
+250	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	average	nearest_centroid	11_human-crc-p2.tif
+251	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	average	wann	11_human-crc-p2.tif
+252	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	average	tacco	11_human-crc-p2.tif
+253	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	average	tangram	11_human-crc-p2.tif
+254	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	average	dot	11_human-crc-p2.tif
+255	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	ward	nearest_centroid	11_human-crc-p2.tif
+256	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	ward	wann	11_human-crc-p2.tif
+257	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	ward	tacco	11_human-crc-p2.tif
+258	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	ward	tangram	11_human-crc-p2.tif
+259	95	095_11_human-crc-p2__11_human-crc-p2	11_human-crc-p2	11_human-crc-p2	annotation_Level2	Level2	ward	dot	11_human-crc-p2.tif

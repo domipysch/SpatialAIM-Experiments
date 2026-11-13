@@ -7,6 +7,8 @@ one. Unlike Experiment 1 it keeps every file (the per-K mappings included) and w
 straight into the layout the demo reads, so `results/` is downloaded as it is.
 
 For the 10 demo pairs: 230 runs, ≈ 250 core-h × 8 in Experiment 1, ≈ 2 × 17 GB of results.
+Pair 95 (`11_human-crc-p2`, not in Experiment 1) adds runs 230–259; its DOT and Tangram runs
+are split by K.
 
 ## Files
 

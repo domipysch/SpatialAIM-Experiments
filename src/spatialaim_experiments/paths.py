@@ -49,6 +49,8 @@ ST_INDEX = DATASETS / "ST" / "index.csv"
 EXPERIMENT1 = _env("SPATIALAIM_EXP1", RESULTS / "experiment1")
 EXP1_SUMMARY = EXPERIMENT1 / "summary"
 ROBUSTNESS = RESULTS / "robustness"
+# Which K each criterion set selects on Experiment 1 (ablation_criteria/).
+ABLATION_CRITERIA = RESULTS / "ablation_criterions"
 
 # ---------------------------------------------------------------------------
 # outputs: the drawings in the vault, previews here
