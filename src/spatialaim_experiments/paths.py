@@ -51,12 +51,15 @@ EXP1_SUMMARY = EXPERIMENT1 / "summary"
 ROBUSTNESS = RESULTS / "robustness"
 # Which K each criterion set selects on Experiment 1 (ablation_criteria/).
 ABLATION_CRITERIA = RESULTS / "ablation_criterions"
+# Section 05's GUI use case (CRC P2) and the analyses behind S10/S11 (sections/05_gui/analysis/).
+GUI = DATA / "03_GUI"
+GUI_ANALYSIS = GUI / "Analysis"
 
 # ---------------------------------------------------------------------------
 # outputs: the drawings in the vault, previews here
 # ---------------------------------------------------------------------------
 VAULT = _env("SPATIALAIM_VAULT", Path(r"C:\Users\zi69hebi\Dev\00_Obsidian"))
-EXCALIDRAW = VAULT / "Excalidraw"
+EXCALIDRAW = VAULT / "20-Alignment" / "Excalidraw"
 OUTPUTS = _env("SPATIALAIM_EXPERIMENTS_OUT", REPO / "outputs")
 
 

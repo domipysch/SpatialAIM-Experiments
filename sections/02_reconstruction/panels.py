@@ -153,7 +153,7 @@ def heat_matrix(df: pd.DataFrame, metric: str, value: str) -> pd.DataFrame:
                 e.g. "cossim_hard_raw_spot"
         value   what each cell shows, SpatialAIM minus annotation:
                   "delta"  the difference in ``metric``
-                  "dk"     the difference in the number of cell types (K)
+                  "dk"     the difference in the number of cell states (K)
 
     Output
         a table with 10 rows (mapper x tree: nearest_centroid/ward,
@@ -422,7 +422,7 @@ def annotation_sweep(allk: pd.DataFrame, reference: str, mapper: str) -> pd.Data
 
 # The two measured curves of each criterion, as the key names them.
 CURVE_LABELS = {"cossim_hard_raw_spot": "per cell", "cossim_hard_raw_gene": "per gene",
-                "spatial_assort_celltype": "per cell type", "spatial_assort_global": "global",
+                "spatial_assort_celltype": "per cell state", "spatial_assort_global": "global",
                 "modularity_st_expression": "ST", "modularity_shared": "reference"}
 
 
@@ -510,7 +510,7 @@ def main() -> None:
     panel_heat(heat_matrix(df, METRIC_GENE, "delta"), "delta_gene", DELTA_SCALE,
                "Δ cosine similarity per gene\n(SpatialAIM − annotation)")
     panel_heat(heat_matrix(df, METRIC_SPOT, "dk"), "delta_k", DK_SCALE,
-               "Δ number of cell types\n(SpatialAIM − annotation)")
+               "Δ number of cell states\n(SpatialAIM − annotation)")
     panel_mappers(df)
 
     runs = exp1.resources("sweep")

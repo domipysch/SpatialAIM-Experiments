@@ -98,12 +98,12 @@ BAR_SIZE = (1.96, 0.82)   # as wide as the wins panel, under which it sits
 # maps of a 1150 x 812 px section). The bars are horizontal, so the metric names
 # read left of them as normal text; the foot holds the count axis and its title.
 WINS_HEIGHT = 2.3 * 812 / 1150
-WINS_LEFT, WINS_PLOT_W, WINS_RIGHT = 1.12, 0.72, 0.12
+WINS_LEFT, WINS_PLOT_W, WINS_RIGHT = 1.34, 0.50, 0.12   # room for "Spatial organisation"
 WINS_FOOT, WINS_TOP = 0.36, 0.08
 WINS_NUMBER_SIZE = 13  # pt, the "9/10" per metric
 WINS_LABELS = {
-    "spatial_assort_celltype": "Assortativity\nper cell type",
-    "spatial_assort_global": "Assortativity\nglobal",
+    "spatial_assort_celltype": "Spatial organisation\nper cell state",
+    "spatial_assort_global": "Spatial organisation\nglobal",
     "modularity_st_expression": "Modularity\nin spatial data",
     "modularity_shared": "Modularity\nin reference",
 }
@@ -150,7 +150,7 @@ def scatter_points(pr: pd.DataFrame, metric: str) -> pd.DataFrame:
           reference    the reference's name
           spatialaim   ``metric`` for SpatialAIM          (the point's y)
           ann          ``metric`` for the annotation      (the point's x)
-          dk           the difference in cell types       (the point's colour)
+          dk           the difference in cell states       (the point's colour)
     """
     return (pr.groupby("reference")
               .agg(spatialaim=(metric, "mean"), ann=(f"{metric}_base", "mean"), dk=("dk", "mean"))
@@ -200,7 +200,7 @@ def panel_dk_bar() -> None:
     bar.set_yticks([])
     bar.set_xticks([-DK_LIMIT, 0, DK_LIMIT])
     bar.set_xticklabels([f"≤{-DK_LIMIT}", "0", f"≥+{DK_LIMIT}"])
-    bar.set_xlabel("Δ number of cell types\n(SpatialAIM − annotation)", labelpad=2.5,
+    bar.set_xlabel("Δ number of cell states\n(SpatialAIM − annotation)", labelpad=2.5,
                    linespacing=1.05)
     bar.spines[:].set_visible(False)
     bar.tick_params(length=1.5, pad=1.0)

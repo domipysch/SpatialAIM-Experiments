@@ -15,7 +15,7 @@
 # cell its own panel:
 #
 #   a kidney, annotation | b kidney, SpatialAIM | c wins
-#   d sketch | e assortativity per cell type | f global assortativity
+#   d sketch | e spatial organisation per cell type | f spatial organisation global
 #   g sketch | h modularity over the slice | i modularity over the reference
 #
 # The top row is the worked example and the overview: one tissue mapped both
@@ -95,17 +95,17 @@ NOTE_GAP = 24         # small map to the note beside it
 ROWS = [
     {
         "sketch": ("sketch_spatial",
-                   "Spatial organisation of\nthe mapped cell types"),
+                   "Spatial organisation of\nthe mapped cell states"),
         "panels": [("plaus_spatial_assort_celltype",
-                    "Spatial assortativity,\nmean over cell types"),
+                    "Spatial organisation\nper cell state"),
                    ("plaus_spatial_assort_global",
-                    "Spatial assortativity,\nglobal")],
+                    "Spatial organisation\nglobal")],
     },
     {
         "sketch": ("sketch_coherence",
-                   "Transcriptional coherence of\nthe mapped cell types"),
+                   "Transcriptional coherence of\nthe mapped cell states"),
         "panels": [("plaus_modularity_st_expression",
-                    "Modularity over mapped\ncell types in spatial data"),
+                    "Modularity over mapped\ncell states in spatial data"),
                    ("plaus_modularity_shared",
                     "Modularity over\nthe reference's cells")],
     },

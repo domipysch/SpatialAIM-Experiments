@@ -2,7 +2,7 @@
 # start (moved out of figure 2), as an Excalidraw drawing in the Obsidian vault.
 #
 # One panel, written by panels.py into figure_S6/panels/ and embedded by wikilink,
-# with its heading above and the key to the five mapper colours stacked to its
+# without a heading (the caption names it) and the key to the five mapper colours stacked to its
 # right. Sizes as in figure 2 (authored 1/0.71 larger than they print).
 
 import json
@@ -19,20 +19,17 @@ PANELS = paths.panel_dir(FIGURE)
 OUT = paths.drawing(FIGURE)
 
 PAD = 14
-FS_HEAD = 40
 FS_LEG = 40
 MARK_W, MARK_H = 16, 48   # the mapper swatch, one line high, as in figure 2's key
 LEG_INDENT = MARK_W + 18
 LINE = FS_LEG * 1.2
-HEADING = "Peak memory, K sweep from the Leiden start"
 
 drawing = Drawing("fs6", PANELS, paths.VAULT)
 
 
 def build(manifest: dict) -> None:
     panel = manifest["panels"]["memory"]
-    drawing.text(HEADING, PAD, PAD, size=FS_HEAD)
-    top = PAD + FS_HEAD * 1.2 + 20
+    top = PAD
     drawing.image("memory", PAD, top, manifest)
     # the key, one mapper per line, level with the plotting box
     x = PAD + panel["w"] + 40

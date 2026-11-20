@@ -80,13 +80,13 @@ LINE = FS_HEAD * 1.2  # one line of heading
 HEADINGS = {
     "umap_celltype": "Coarse annotation",
     "umap_split": "Induced split",
-    "scores_split": "SpatialAIM on split\ncell types",
+    "scores_split": "SpatialAIM on split\ncell states",
     "scores_overcluster": "SpatialAIM without\nstart annotation",
-    "map_celltype": "Mapped cell types",
+    "map_celltype": "Mapped cell states",
     "map_split": "Glut. A & B mapped at random",
     "map_split_aim": "Glut. A & B re-merged",
-    "map_overcluster_aim": "Finer cell types detected",
-    "dots_states_fine": "Found types correspond to finer cell types",
+    "map_overcluster_aim": "Finer cell states detected",
+    "dots_states_fine": "Found types correspond to finer cell states",
 }
 
 # The two keys to the panels above. They name a band across the top of the
@@ -94,7 +94,7 @@ HEADINGS = {
 # beside it, set the same way.
 HEAD_SPLIT = "Induced type split"
 HEAD_CRITERIA = "Criteria"
-HEAD_STATES = "Interpreted cell types"
+HEAD_STATES = "Interpreted cell states"
 
 drawing: Drawing | None = None  # set by main(), once --mapper says which figure this is
 
@@ -111,7 +111,7 @@ def text(body: str, x, y, size=FS_LEG, colour=INK, right=False):
 
 
 def swatch(x: float, y: float, entry, kind: str) -> None:
-    """The mark in front of a legend label: a dot for a cell type, a rule in the
+    """The mark in front of a legend label: a dot for a cell state, a rule in the
     curve's own weight for a criterion."""
     if kind == "dot":
         drawing.dot(x + SWATCH / 2, y + FS_LEG * 0.6, SWATCH, entry[1])

@@ -8,7 +8,9 @@ dots:
     score_range_per_reference    each criterion score's range over K
                                  (max - min per sweep, all_k_per_run.csv.gz)
 
-Both are written as PNG and PDF to ABLATION_CRITERIA.
+Both are written as PNG and PDF to ABLATION_CRITERIA and, without the grey note
+(it goes to the caption), as panels of supplementary figure S9
+(Excalidraw/figure_S9/panels/, assembled by sections/05_gui/make_excalidraw_supp.py).
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ import pandas as pd
 from spatialaim_experiments import paths, style
 
 style.use_paper_rcparams()
+panels = style.PanelWriter(paths.panel_dir("S9"))
 
 # The sets in display order with their tick labels and colours: each criterion
 # in its own colour, the pairs grey, all three in ink.
@@ -91,12 +94,15 @@ def figure(values: pd.DataFrame, sets: list[str], ylabel: str, note: str, stem: 
         decorate(ax, reference)
     for ax in axes[:, 0]:
         ax.set_ylabel(ylabel)
-    fig.text(0.99, 0.005, note, ha="right", va="bottom", fontsize=7, color=style.GREY)
+    text = fig.text(0.99, 0.005, note, ha="right", va="bottom", fontsize=7, color=style.GREY)
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     for ext in ("png", "pdf"):
         fig.savefig(paths.ABLATION_CRITERIA / f"{stem}.{ext}",
                     dpi=style.PREVIEW_DPI, facecolor="white")
-    plt.close(fig)
+    # the figure panel: without the note (the caption says it), transparent
+    text.remove()
+    fig.tight_layout()
+    panels.save(fig, stem)
 
 
 def main() -> None:
@@ -120,6 +126,7 @@ def main() -> None:
     figure(ranges, CRITERIA, "score range over K",
            "range = max − min of the score over a sweep's K; R recon, S spatial, C coherence",
            "score_range_per_reference", lambda ax, reference: ax.set_ylim(0, top))
+    panels.write_manifest()
 
 
 if __name__ == "__main__":

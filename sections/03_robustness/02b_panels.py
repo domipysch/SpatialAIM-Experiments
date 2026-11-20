@@ -92,7 +92,7 @@ def analysis_dir() -> Path:
 
 
 def spot_types(run: str, k: int) -> np.ndarray:
-    """Hard spot assignment as annotated cell type names."""
+    """Hard spot assignment as annotated cell state names."""
     d = run_dir(run)
     sc = ad.read_h5ad(d.parent / "start_clustering.h5ad")
     cut = pd.read_csv(d / f"k_{k:03d}" / "start_cluster_to_state.csv")
@@ -429,7 +429,7 @@ def dots_panel(name: str, fractions: pd.DataFrame,
     ax.set_yticks(range(len(rows)))
     ax.set_yticklabels([str(i + 1) for i in range(len(rows))], fontsize=FS_ROW,
                        color="#1e1e1e")
-    ax.set_xlabel("Fine cell type (reference)", fontsize=FS_TICK, labelpad=3)
+    ax.set_xlabel("Fine cell state (reference)", fontsize=FS_TICK, labelpad=3)
     ax.set_ylabel("Found type", fontsize=FS_TICK, labelpad=4)
 
     # one bracket over all columns: they are the coarse type the figure is about

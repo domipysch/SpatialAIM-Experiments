@@ -16,6 +16,9 @@ sections/               one folder per results section of the paper, each holdin
   03_robustness/        Fig. 2.3  annotation granularity   (own runs, pair 1)
   04_biology/           Fig. 2.4  biological & topological plausibility
   05_gui/               Fig. 2.5  the GUI on colorectal cancer (GUI runs, pair 2)
+    analysis/           the CRC P2 checks behind S10/S11 (markers, Visium HD
+                        registration, cell area, nhood enrichment); write to
+                        Data/03_GUI/Analysis/
 src/spatialaim_experiments/    the helpers every section shares (installed, see below)
 ```
 
